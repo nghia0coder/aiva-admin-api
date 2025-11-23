@@ -1,0 +1,55 @@
+﻿using System.Net.Sockets;
+
+var builder = DistributedApplication.CreateBuilder(args);
+
+// ============================================================================
+// Port Configuration Strategy
+// ============================================================================
+// SQL Server: 1433 (standard SQL Server port)
+// Papercut SMTP: 25 (standard SMTP port)
+// Papercut UI: 37408 (custom port for email testing UI)
+// Future services should follow this pattern with documented ports
+// ============================================================================
+
+// Add SQL Server container with persistent volume and fixed port
+var sqlServer = builder.AddSqlServer("sqlserver")
+  .WithLifetime(ContainerLifetime.Persistent)
+  .WithVolume("sqlserver-data", "/var/opt/mssql", isReadOnly: false)
+  .WithEndpoint("tcp", e =>
+  {
+    e.TargetPort = 1433;  // SQL Server default port inside container
+    e.Port = 1433;        // Fixed host port for easy access
+    e.Protocol = ProtocolType.Tcp;
+    e.UriScheme = "tcp";
+  });
+
+// Add the database
+var cleanArchDb = sqlServer.AddDatabase("cleanarchitecture");
+
+// Papercut SMTP container for email testing
+var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
+  .WithEndpoint("smtp", e =>
+  {
+    e.TargetPort = 25;   // container port
+    e.Port = 25;         // host port (standard SMTP)
+    e.Protocol = ProtocolType.Tcp;
+    e.UriScheme = "smtp";
+  })
+  .WithEndpoint("ui", e =>
+  {
+    e.TargetPort = 37408;
+    e.Port = 37408;      // Fixed port for Papercut web UI
+    e.UriScheme = "http";
+  });
+
+// Add the web project with the database connection
+builder.AddProject<Projects.Aiva_Admin_Api_Web>("web")
+  .WithReference(cleanArchDb)
+  .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
+  .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"))
+  .WaitFor(cleanArchDb)
+  .WaitFor(papercut);
+
+builder
+  .Build()
+  .Run();

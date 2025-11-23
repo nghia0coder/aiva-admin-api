@@ -1,0 +1,9 @@
+﻿global using System.Runtime.CompilerServices;
+global using Ardalis.SharedKernel;
+global using Aiva.Admin.Api.Core.ContributorAggregate;
+global using Aiva.Admin.Api.UseCases.Contributors.Create;
+global using Shouldly;
+global using Mediator;
+global using Microsoft.Extensions.Logging;
+global using NSubstitute;
+global using Xunit;

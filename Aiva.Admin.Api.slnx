@@ -1,0 +1,33 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path=".template.config/template.json" />
+    <File Path="CleanArchitecture.nuspec" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Aiva.Admin.Api.Core/Aiva.Admin.Api.Core.csproj" />
+    <Project Path="src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj" />
+    <Project Path="src/Aiva.Admin.Api.UseCases/Aiva.Admin.Api.UseCases.csproj" />
+    <Project Path="src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/_aspire/">
+    <Project Path="src/Aiva.Admin.Api.AspireHost/Aiva.Admin.Api.AspireHost.csproj" />
+    <Project Path="src/Aiva.Admin.Api.ServiceDefaults/Aiva.Admin.Api.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Aiva.Admin.Api.FunctionalTests/Aiva.Admin.Api.FunctionalTests.csproj">
+      <BuildDependency Project="src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj" />
+    </Project>
+    <Project Path="tests/Aiva.Admin.Api.IntegrationTests/Aiva.Admin.Api.IntegrationTests.csproj">
+      <BuildDependency Project="src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj" />
+    </Project>
+    <Project Path="tests/Aiva.Admin.Api.UnitTests/Aiva.Admin.Api.UnitTests.csproj" />
+  </Folder>
+</Solution>
