@@ -24,7 +24,7 @@ var sqlServer = builder.AddSqlServer("sqlserver")
   });
 
 // Add the database
-var cleanArchDb = sqlServer.AddDatabase("cleanarchitecture");
+var aivaChatbotDb = sqlServer.AddDatabase("aiva-chatbot-db");
 
 // Papercut SMTP container for email testing
 var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
@@ -44,10 +44,10 @@ var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
 
 // Add the web project with the database connection
 builder.AddProject<Projects.Aiva_Admin_Api_Web>("web")
-  .WithReference(cleanArchDb)
+  .WithReference(aivaChatbotDb)
   .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
   .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"))
-  .WaitFor(cleanArchDb)
+  .WaitFor(aivaChatbotDb)
   .WaitFor(papercut);
 
 builder

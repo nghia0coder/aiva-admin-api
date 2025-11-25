@@ -1,9 +1,5 @@
 ﻿using Vogen;
 
-[assembly: VogenDefaults(
-        staticAbstractsGeneration: StaticAbstractsGeneration.MostCommon | StaticAbstractsGeneration.InstanceMethodsAndProperties)]
-
-
 namespace Aiva.Admin.Api.Core.ContributorAggregate;
 
 [ValueObject<int>]

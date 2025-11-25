@@ -1,6 +1,6 @@
-﻿using Aiva.Admin.Api.Core.ContributorAggregate.Events;
+﻿namespace Aiva.Admin.Api.Core.ContributorAggregate;
 
-namespace Aiva.Admin.Api.Core.ContributorAggregate;
+using Events;
 
 public class Contributor(ContributorName name) : EntityBase<Contributor, ContributorId>, IAggregateRoot
 {

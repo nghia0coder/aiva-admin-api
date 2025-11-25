@@ -5,6 +5,7 @@ using Aiva.Admin.Api.Infrastructure.Data.Queries;
 using Aiva.Admin.Api.UseCases.Contributors.List;
 
 namespace Aiva.Admin.Api.Infrastructure;
+
 public static class InfrastructureServiceExtensions
 {
   public static IServiceCollection AddInfrastructureServices(
@@ -16,8 +17,8 @@ public static class InfrastructureServiceExtensions
     // 1. "cleanarchitecture" - provided by Aspire when using .WithReference(cleanArchDb)
     // 2. "DefaultConnection" - traditional SQL Server connection
     // 3. "SqliteConnection" - fallback to SQLite
-    string? connectionString = config.GetConnectionString("cleanarchitecture")
-                               ?? config.GetConnectionString("DefaultConnection") 
+    string? connectionString = config.GetConnectionString("aiva-chatbot-db")
+                               ?? config.GetConnectionString("DefaultConnection")
                                ?? config.GetConnectionString("SqliteConnection");
     Guard.Against.Null(connectionString);
 
@@ -27,9 +28,9 @@ public static class InfrastructureServiceExtensions
     services.AddDbContext<AppDbContext>((provider, options) =>
     {
       var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
-      
+
       // Use SQL Server if Aspire or DefaultConnection is available, otherwise use SQLite
-      if (config.GetConnectionString("cleanarchitecture") != null || 
+      if (config.GetConnectionString("aiva-chatbot-db") != null ||
           config.GetConnectionString("DefaultConnection") != null)
       {
         options.UseSqlServer(connectionString);
@@ -38,7 +39,7 @@ public static class InfrastructureServiceExtensions
       {
         options.UseSqlite(connectionString);
       }
-      
+
       options.AddInterceptors(eventDispatchInterceptor);
     });
 
