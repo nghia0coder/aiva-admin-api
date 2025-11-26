@@ -15,8 +15,5 @@ public class StorageConfiguration : IEntityTypeConfiguration<Storage>
       .HasVogenConversion()
       .HasMaxLength(StorageName.MaxLength)
       .IsRequired();
-
-    builder.Property(entity => entity.StorageDescription)
-      .HasMaxLength(StorageDescription.MaxLength);
   }
 }

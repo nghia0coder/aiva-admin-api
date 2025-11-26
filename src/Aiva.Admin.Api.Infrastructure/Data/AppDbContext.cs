@@ -3,6 +3,8 @@
 using Core.ContributorAggregate;
 using Core.StorageAggregate;
 
+// dotnet ef migrations add MigrationName -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
+
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
   public DbSet<Contributor> Contributors => Set<Contributor>();

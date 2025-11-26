@@ -10,5 +10,4 @@ using Core.StorageAggregate;
 
 [EfCoreConverter<StorageId>]
 [EfCoreConverter<StorageName>]
-[EfCoreConverter<StorageDescription>]
 internal partial class VogenEfCoreConverters;
