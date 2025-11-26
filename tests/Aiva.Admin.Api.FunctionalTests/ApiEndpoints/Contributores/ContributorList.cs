@@ -1,8 +1,7 @@
 ﻿using Aiva.Admin.Api.Infrastructure.Data;
-using Aiva.Admin.Api.Web.Contributors;
 using Aiva.Admin.Api.Web.Contributors.List;
 
-namespace Aiva.Admin.Api.FunctionalTests.ApiEndpoints;
+namespace Aiva.Admin.Api.FunctionalTests.ApiEndpoints.Contributores;
 
 [Collection("Sequential")]
 public class ContributorList(CustomWebApplicationFactory<Program> factory) : IClassFixture<CustomWebApplicationFactory<Program>>

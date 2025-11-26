@@ -1,7 +1,6 @@
-﻿using Aiva.Admin.Api.Core.ContributorAggregate;
-using Aiva.Admin.Api.Infrastructure.Data;
+﻿namespace Aiva.Admin.Api.IntegrationTests.Data;
 
-namespace Aiva.Admin.Api.IntegrationTests.Data;
+using Infrastructure.Data;
 
 public abstract class BaseEfRepoTestFixture
 {
@@ -36,8 +35,8 @@ public abstract class BaseEfRepoTestFixture
     return builder.Options;
   }
 
-  protected EfRepository<Contributor> GetRepository()
+  protected EfRepository<T> GetRepository<T>() where T : class, IAggregateRoot
   {
-    return new EfRepository<Contributor>(_dbContext);
+    return new EfRepository<T>(_dbContext);
   }
 }

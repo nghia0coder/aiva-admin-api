@@ -2,7 +2,7 @@
 using Aiva.Admin.Api.Web.Contributors;
 
 
-namespace Aiva.Admin.Api.FunctionalTests.ApiEndpoints;
+namespace Aiva.Admin.Api.FunctionalTests.ApiEndpoints.Contributores;
 
 [Collection("Sequential")]
 public class ContributorGetById(CustomWebApplicationFactory<Program> factory) : IClassFixture<CustomWebApplicationFactory<Program>>

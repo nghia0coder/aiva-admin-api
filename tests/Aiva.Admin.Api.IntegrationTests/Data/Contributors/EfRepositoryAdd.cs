@@ -1,6 +1,6 @@
 ﻿using Aiva.Admin.Api.Core.ContributorAggregate;
 
-namespace Aiva.Admin.Api.IntegrationTests.Data;
+namespace Aiva.Admin.Api.IntegrationTests.Data.Contributors;
 
 public class EfRepositoryAdd : BaseEfRepoTestFixture
 {
@@ -9,7 +9,7 @@ public class EfRepositoryAdd : BaseEfRepoTestFixture
   {
     var testContributorName = ContributorName.From("testContributor");
     var testContributorStatus = ContributorStatus.NotSet;
-    var repository = GetRepository();
+    var repository = GetRepository<Contributor>();
     var Contributor = new Contributor(testContributorName);
 
     await repository.AddAsync(Contributor);

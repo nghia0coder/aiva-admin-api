@@ -1,6 +1,6 @@
 ﻿using Aiva.Admin.Api.Core.ContributorAggregate;
 
-namespace Aiva.Admin.Api.IntegrationTests.Data;
+namespace Aiva.Admin.Api.IntegrationTests.Data.Contributors;
 
 public class EfRepositoryDelete : BaseEfRepoTestFixture
 {
@@ -8,7 +8,7 @@ public class EfRepositoryDelete : BaseEfRepoTestFixture
   public async Task DeletesItemAfterAddingIt()
   {
     // add a Contributor
-    var repository = GetRepository();
+    var repository = GetRepository<Contributor>();
     var initialName = ContributorName.From(Guid.NewGuid().ToString());
     var Contributor = new Contributor(initialName);
     await repository.AddAsync(Contributor);
