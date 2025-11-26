@@ -1,3 +1,3 @@
 ﻿namespace Aiva.Admin.Api.Web.Storages;
 
-public record StorageRecord(string Id, string Name, string Description);
+public record StorageRecord(int Id, string StorageName, string? StorageDescription);

@@ -1,10 +1,11 @@
-﻿using Aiva.Admin.Api.Core.Interfaces;
-using Aiva.Admin.Api.Core.Services;
-using Aiva.Admin.Api.Infrastructure.Data;
-using Aiva.Admin.Api.Infrastructure.Data.Queries;
-using Aiva.Admin.Api.UseCases.Contributors.List;
+﻿namespace Aiva.Admin.Api.Infrastructure;
 
-namespace Aiva.Admin.Api.Infrastructure;
+using Core.Interfaces;
+using Core.Services;
+using Data;
+using Data.Queries;
+using UseCases.Contributors.List;
+using UseCases.Storages.List;
 
 public static class InfrastructureServiceExtensions
 {
@@ -46,6 +47,7 @@ public static class InfrastructureServiceExtensions
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
            .AddScoped<IListContributorsQueryService, ListContributorsQueryService>()
+           .AddScoped<IListStoragesQueryService, ListStoragesQueryService>()
            .AddScoped<IDeleteContributorService, DeleteContributorService>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
