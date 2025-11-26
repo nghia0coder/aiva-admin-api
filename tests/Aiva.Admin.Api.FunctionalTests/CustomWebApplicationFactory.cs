@@ -1,8 +1,10 @@
-﻿using Aiva.Admin.Api.Infrastructure.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Testcontainers.MsSql;
 
 namespace Aiva.Admin.Api.FunctionalTests;
+
+using Infrastructure.Data;
+using Infrastructure.Data.Seeding;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram>, IAsyncLifetime where TProgram : class
 {
@@ -50,9 +52,10 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
       {
         // Apply migrations to create the database schema
         db.Database.Migrate();
-        
+
         // Seed the database with test data.
-        SeedData.PopulateTestDataAsync(db).Wait();
+        var seeder = scopedServices.GetRequiredService<DatabaseSeeder>();
+        seeder.SeedAllAsync(db).Wait();
       }
       catch (Exception ex)
       {

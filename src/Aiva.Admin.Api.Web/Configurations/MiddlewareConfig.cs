@@ -1,5 +1,6 @@
-﻿using Ardalis.ListStartupServices;
-using Aiva.Admin.Api.Infrastructure.Data;
+﻿using Aiva.Admin.Api.Infrastructure.Data;
+using Aiva.Admin.Api.Infrastructure.Data.Seeding;
+using Ardalis.ListStartupServices;
 using Scalar.AspNetCore;
 
 namespace Aiva.Admin.Api.Web.Configurations;
@@ -14,7 +15,7 @@ public static class MiddlewareConfig
       app.UseShowAllServicesMiddleware(); // see https://github.com/ardalis/AspNetCoreStartupServices
     }
     else
-    {   
+    {
       app.UseDefaultExceptionHandler(); // from FastEndpoints
       app.UseHsts();
     }
@@ -33,9 +34,9 @@ public static class MiddlewareConfig
     app.UseHttpsRedirection(); // Note this will drop Authorization headers
 
     // Run migrations and seed in Development or when explicitly requested via environment variable
-    var shouldMigrate = app.Environment.IsDevelopment() || 
+    var shouldMigrate = app.Environment.IsDevelopment() ||
                         app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
-    
+
     if (shouldMigrate)
     {
       await MigrateDatabaseAsync(app);
@@ -75,7 +76,10 @@ public static class MiddlewareConfig
     {
       logger.LogInformation("Seeding database...");
       var context = services.GetRequiredService<AppDbContext>();
-      await SeedData.InitializeAsync(context);
+      var seeder = services.GetRequiredService<DatabaseSeeder>();
+
+      await seeder.SeedAllAsync(context);
+
       logger.LogInformation("Database seeded successfully");
     }
     catch (Exception ex)

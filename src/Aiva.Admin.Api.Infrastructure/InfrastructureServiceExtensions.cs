@@ -4,6 +4,7 @@ using Core.Interfaces;
 using Core.Services;
 using Data;
 using Data.Queries;
+using Data.Seeding;
 using UseCases.Contributors.List;
 using UseCases.Storages.List;
 
@@ -43,6 +44,12 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Register all seeders
+    services.AddScoped<IDataSeeder, ContributorSeeder>();
+    services.AddScoped<IDataSeeder, StorageSeeder>();
+
+    services.AddScoped<DatabaseSeeder>();
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
