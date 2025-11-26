@@ -12,16 +12,9 @@ var builder = DistributedApplication.CreateBuilder(args);
 // ============================================================================
 
 // Add SQL Server container with persistent volume and fixed port
-var sqlServer = builder.AddSqlServer("sqlserver")
+var sqlServer = builder.AddSqlServer("sqlserver", port: 1433)
   .WithLifetime(ContainerLifetime.Persistent)
-  .WithVolume("sqlserver-data", "/var/opt/mssql", isReadOnly: false)
-  .WithEndpoint("tcp", e =>
-  {
-    e.TargetPort = 1433;  // SQL Server default port inside container
-    e.Port = 1433;        // Fixed host port for easy access
-    e.Protocol = ProtocolType.Tcp;
-    e.UriScheme = "tcp";
-  });
+  .WithVolume("sqlserver-data", "/var/opt/mssql", isReadOnly: false);
 
 // Add the database
 var aivaChatbotDb = sqlServer.AddDatabase("aiva-chatbot-db");
