@@ -22,6 +22,7 @@
     <Project Path="src/Aiva.Admin.Api.ServiceDefaults/Aiva.Admin.Api.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Aiva.Admin.Api.AspireTests/Aiva.Admin.Api.AspireTests.csproj" />
     <Project Path="tests/Aiva.Admin.Api.FunctionalTests/Aiva.Admin.Api.FunctionalTests.csproj">
       <BuildDependency Project="src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj" />
     </Project>
