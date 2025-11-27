@@ -1,7 +1,9 @@
 ﻿using Ardalis.ListStartupServices;
-using Aiva.Admin.Api.Infrastructure.Email;
 
 namespace Aiva.Admin.Api.Web.Configurations;
+
+using Infrastructure.BlobStorage;
+using Infrastructure.Email;
 
 public static class OptionConfigs
 {
@@ -10,6 +12,10 @@ public static class OptionConfigs
                                                     Microsoft.Extensions.Logging.ILogger logger,
                                                     WebApplicationBuilder builder)
   {
+
+    services.Configure<BlobStorageConfiguration>(
+            configuration.GetSection(BlobStorageConfiguration.SectionName));
+
     services.Configure<MailserverConfiguration>(configuration.GetSection("Mailserver"))
     // Configure Web Behavior
     .Configure<CookiePolicyOptions>(options =>
