@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
+using Aiva.Admin.Api.Infrastructure.BlobStorage;
 using Core.Interfaces;
 using Core.Services;
 using Data;
@@ -44,6 +45,11 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Configure Azure Blob Storage
+    services.Configure<BlobStorageConfiguration>(
+        config.GetSection(BlobStorageConfiguration.SectionName));
+    services.AddSingleton<IBlobStorageService, BlobStorageService>();
 
     // Register all seeders
     services.AddScoped<IDataSeeder, ContributorSeeder>();

@@ -9,8 +9,11 @@ public class CreateStorageHandler(IRepository<Storage> _repository)
   public async ValueTask<Result<StorageId>> Handle(CreateStorageCommand command,
     CancellationToken cancellationToken)
   {
-    var newStorage = new Storage(command.StorageName, command.StorageDescription);
+    var newStorage = Storage.Create(command.StorageName, command.StorageDescription);
     var createdItem = await _repository.AddAsync(newStorage, cancellationToken);
+
+    createdItem.SetContainerName();
+    await _repository.UpdateAsync(createdItem, cancellationToken);
 
     return createdItem.Id;
   }

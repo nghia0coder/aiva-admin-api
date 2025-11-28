@@ -53,5 +53,6 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.13.0" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.0.0" />
     <PackageVersion Include="Vogen" Version="8.0.2" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.26.0" />
   </ItemGroup>
 </Project>
