@@ -1,7 +1,7 @@
 ﻿namespace Aiva.Admin.Api.UnitTests.UseCases.Storages;
 
 using Aiva.Admin.Api.Core.StorageAggregate;
-using Aiva.Admin.Api.UseCases.Contributors.Create;
+using Aiva.Admin.Api.UnitTests.Builders;
 using Aiva.Admin.Api.UseCases.Storages.Create;
 
 public class CreateStorageHandlerHandle
@@ -16,17 +16,18 @@ public class CreateStorageHandlerHandle
     _handler = new CreateStorageHandler(_repository);
   }
 
-  private Storage CreateStorage()
-  {
-    return new Storage(_testName, _testDescription);
-  }
-
   [Fact]
   public async Task ReturnsSuccessGivenValidInput()
   {
     // Arrange
+    var storage = new StorageBuilder()
+      .WithName(_testName)
+      .WithDescription(_testDescription)
+      .WithId(1)
+      .Build();
+
     _repository.AddAsync(Arg.Any<Storage>(), Arg.Any<CancellationToken>())
-      .Returns(Task.FromResult(CreateStorage()));
+      .Returns(Task.FromResult(storage));
 
     var command = new CreateStorageCommand(_testName, _testDescription);
 
@@ -35,14 +36,21 @@ public class CreateStorageHandlerHandle
 
     // Assert
     result.IsSuccess.ShouldBeTrue();
+    result.Value.Value.ShouldBe(1);
   }
 
   [Fact]
   public async Task CallsRepositoryAddAsync()
   {
     // Arrange
+    var storage = new StorageBuilder()
+      .WithName(_testName)
+      .WithDescription(_testDescription)
+      .WithId(1)
+      .Build();
+
     _repository.AddAsync(Arg.Any<Storage>(), Arg.Any<CancellationToken>())
-      .Returns(Task.FromResult(CreateStorage()));
+      .Returns(Task.FromResult(storage));
 
     var command = new CreateStorageCommand(_testName, _testDescription);
 
@@ -59,9 +67,14 @@ public class CreateStorageHandlerHandle
   public async Task AllowsNullDescription()
   {
     // Arrange
-    var storageWithNullDesc = new Storage(_testName, null);
+    var storage = new StorageBuilder()
+      .WithName(_testName)
+      .WithDescription(null)
+      .WithId(2)
+      .Build();
+
     _repository.AddAsync(Arg.Any<Storage>(), Arg.Any<CancellationToken>())
-      .Returns(Task.FromResult(storageWithNullDesc));
+      .Returns(Task.FromResult(storage));
 
     var command = new CreateStorageCommand(_testName, null);
 
@@ -70,5 +83,29 @@ public class CreateStorageHandlerHandle
 
     // Assert
     result.IsSuccess.ShouldBeTrue();
+  }
+
+  [Fact]
+  public async Task ReturnsCorrectStorageId()
+  {
+    // Arrange
+    var expectedId = 42;
+    var storage = new StorageBuilder()
+      .WithName(_testName)
+      .WithDescription(_testDescription)
+      .WithId(expectedId)
+      .Build();
+
+    _repository.AddAsync(Arg.Any<Storage>(), Arg.Any<CancellationToken>())
+      .Returns(Task.FromResult(storage));
+
+    var command = new CreateStorageCommand(_testName, _testDescription);
+
+    // Act
+    var result = await _handler.Handle(command, CancellationToken.None);
+
+    // Assert
+    result.IsSuccess.ShouldBeTrue();
+    result.Value.Value.ShouldBe(expectedId);
   }
 }
