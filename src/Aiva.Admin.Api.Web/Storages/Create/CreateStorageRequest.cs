@@ -11,5 +11,3 @@ public class CreateStorageRequest
 
   public string? StorageDescription { get; set; }
 }
-
-

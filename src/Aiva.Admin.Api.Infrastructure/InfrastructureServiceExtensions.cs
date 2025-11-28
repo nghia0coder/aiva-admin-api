@@ -1,12 +1,13 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
-using Aiva.Admin.Api.Infrastructure.BlobStorage;
 using Core.Interfaces;
 using Core.Services;
 using Data;
 using Data.Queries;
 using Data.Seeding;
+using Infrastructure.BlobStorage;
 using UseCases.Contributors.List;
+using UseCases.Folders.GetByStorage;
 using UseCases.Storages.List;
 
 public static class InfrastructureServiceExtensions
@@ -59,6 +60,7 @@ public static class InfrastructureServiceExtensions
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
+           .AddScoped<IGetFoldersByStorageQueryService, GetFoldersByStorageQueryService>()
            .AddScoped<IListContributorsQueryService, ListContributorsQueryService>()
            .AddScoped<IListStoragesQueryService, ListStoragesQueryService>()
            .AddScoped<IDeleteContributorService, DeleteContributorService>();
