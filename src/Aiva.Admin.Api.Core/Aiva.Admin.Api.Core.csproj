@@ -15,8 +15,4 @@
     <PackageReference Include="Vogen" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="FolderAggregate\Handlers\" />
-  </ItemGroup>
-
 </Project>

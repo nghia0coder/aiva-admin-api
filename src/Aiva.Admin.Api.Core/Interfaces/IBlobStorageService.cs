@@ -22,4 +22,23 @@ public interface IBlobStorageService
   /// Checks if a container exists
   /// </summary>
   Task<bool> ContainerExistsAsync(string containerName, CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Creates a virtual folder by uploading a placeholder blob
+  /// </summary>
+  /// <param name="containerName">The container name</param>
+  /// <param name="folderPath">The virtual folder path (blob prefix)</param>
+  /// <param name="cancellationToken">Cancellation token</param>
+  /// <returns>Result indicating success with the folder URI</returns>
+  Task<Result<string>> CreateVirtualFolderAsync(string containerName, string folderPath, CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Deletes a virtual folder and optionally all blobs within it
+  /// </summary>
+  Task<Result> DeleteVirtualFolderAsync(string containerName, string folderPath, bool deleteContents = false, CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Checks if a virtual folder exists (has marker or any blobs with prefix)
+  /// </summary>
+  Task<bool> VirtualFolderExistsAsync(string containerName, string folderPath, CancellationToken cancellationToken = default);
 }

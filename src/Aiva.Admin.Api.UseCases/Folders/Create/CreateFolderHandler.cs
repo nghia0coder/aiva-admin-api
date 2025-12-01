@@ -1,11 +1,14 @@
 ﻿namespace Aiva.Admin.Api.UseCases.Folders.Create;
 
 using Core.FolderAggregate;
+using Core.FolderAggregate.Events;
 using Core.StorageAggregate;
+using Mediator;
 
 public class CreateFolderHandler(
   IRepository<Folder> folderRepository,
-  IReadRepository<Storage> storageRepository
+  IReadRepository<Storage> storageRepository,
+  IMediator mediator
 ) : ICommandHandler<CreateFolderCommand, Result<FolderId>>
 {
   public async ValueTask<Result<FolderId>> Handle(
@@ -42,6 +45,9 @@ public class CreateFolderHandler(
 
     createdFolder.SetBlobPrefix(parentPrefix);
     await folderRepository.UpdateAsync(createdFolder, cancellationToken);
+
+    // Publish domain event to create folder in Azure Storage
+    await mediator.Publish(new FolderCreatedEvent(createdFolder), cancellationToken);
 
     return createdFolder.Id;
   }

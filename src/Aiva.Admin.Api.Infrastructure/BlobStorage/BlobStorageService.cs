@@ -14,6 +14,7 @@ public sealed class BlobStorageService : IBlobStorageService
   private readonly BlobServiceClient _blobServiceClient;
   private readonly BlobStorageConfiguration _configuration;
   private readonly ILogger<BlobStorageService> _logger;
+  private const string FolderMarkerFileName = ".folder";
 
   public BlobStorageService(
       IOptions<BlobStorageConfiguration> options,
@@ -115,5 +116,114 @@ public sealed class BlobStorageService : IBlobStorageService
   {
     var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
     return await containerClient.ExistsAsync(cancellationToken);
+  }
+
+  public async Task<Result<string>> CreateVirtualFolderAsync(
+    string containerName,
+    string folderPath,
+    CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+
+      // Ensure container exists
+      if (!await containerClient.ExistsAsync(cancellationToken))
+      {
+        return Result.Error($"Container '{containerName}' does not exist");
+      }
+
+      // Normalize folder path (ensure trailing slash for prefix)
+      var normalizedPath = folderPath.TrimEnd('/');
+      var markerBlobName = $"{normalizedPath}/{FolderMarkerFileName}";
+
+      var blobClient = containerClient.GetBlobClient(markerBlobName);
+
+      // Upload an empty placeholder blob to create the "folder"
+      using var emptyStream = new MemoryStream(Array.Empty<byte>());
+      await blobClient.UploadAsync(
+        emptyStream,
+        overwrite: true,
+        cancellationToken: cancellationToken);
+
+      _logger.LogInformation(
+        "Created virtual folder: {FolderPath} in container: {ContainerName}",
+        folderPath,
+        containerName);
+
+      return Result.Success($"{containerClient.Uri}/{normalizedPath}");
+    }
+    catch (RequestFailedException ex)
+    {
+      _logger.LogError(ex,
+        "Failed to create virtual folder {FolderPath} in container {ContainerName}",
+        folderPath,
+        containerName);
+      return Result.Error($"Failed to create virtual folder: {ex.Message}");
+    }
+  }
+
+  public async Task<Result> DeleteVirtualFolderAsync(
+      string containerName,
+      string folderPath,
+      bool deleteContents = false,
+      CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+      var normalizedPath = folderPath.TrimEnd('/');
+
+      if (deleteContents)
+      {
+        // Delete all blobs with this prefix
+        await foreach (var blob in containerClient.GetBlobsAsync(
+          prefix: normalizedPath + "/",
+          cancellationToken: cancellationToken))
+        {
+          await containerClient.DeleteBlobIfExistsAsync(blob.Name, cancellationToken: cancellationToken);
+        }
+      }
+      else
+      {
+        // Only delete the folder marker
+        var markerBlobName = $"{normalizedPath}/{FolderMarkerFileName}";
+        await containerClient.DeleteBlobIfExistsAsync(markerBlobName, cancellationToken: cancellationToken);
+      }
+
+      _logger.LogInformation(
+        "Deleted virtual folder: {FolderPath} from container: {ContainerName}",
+        folderPath,
+        containerName);
+
+      return Result.Success();
+    }
+    catch (RequestFailedException ex)
+    {
+      _logger.LogError(ex,
+        "Failed to delete virtual folder {FolderPath} in container {ContainerName}",
+        folderPath,
+        containerName);
+      return Result.Error($"Failed to delete virtual folder: {ex.Message}");
+    }
+  }
+
+  public async Task<bool> VirtualFolderExistsAsync(
+      string containerName,
+      string folderPath,
+      CancellationToken cancellationToken = default)
+  {
+    var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+    var normalizedPath = folderPath.TrimEnd('/') + "/";
+
+    // Check if any blob exists with this prefix
+    await foreach (var _ in containerClient.GetBlobsAsync(
+      prefix: normalizedPath,
+      cancellationToken: cancellationToken))
+    {
+      return true;
+    }
+
+    return false;
   }
 }

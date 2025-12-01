@@ -1,6 +1,7 @@
-﻿using Aiva.Admin.Api.Core.StorageAggregate;
+﻿namespace Aiva.Admin.Api.Core.FolderAggregate;
 
-namespace Aiva.Admin.Api.Core.FolderAggregate;
+using Core.FolderAggregate.Events;
+using Core.StorageAggregate;
 
 public class Folder : AuditableEntity<Folder, FolderId>, IAggregateRoot
 {
@@ -56,7 +57,7 @@ public class Folder : AuditableEntity<Folder, FolderId>, IAggregateRoot
       ? Name.Value
       : $"{parentPrefix}/{Name.Value}";
 
-    //RegisterDomainEvent(new FolderCreatedEvent(this));
+    RegisterDomainEvent(new FolderCreatedEvent(this));
   }
 
   public Folder UpdateName(FolderName newName)
