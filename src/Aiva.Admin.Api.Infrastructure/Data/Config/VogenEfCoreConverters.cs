@@ -3,6 +3,7 @@
 namespace Aiva.Admin.Api.Infrastructure.Data.Config;
 
 using Core.ContributorAggregate;
+using Core.FileAggregate;
 using Core.FolderAggregate;
 using Core.StorageAggregate;
 
@@ -14,4 +15,7 @@ using Core.StorageAggregate;
 
 [EfCoreConverter<FolderId>]
 [EfCoreConverter<FolderName>]
+
+[EfCoreConverter<FileId>]
+[EfCoreConverter<FileName>]
 internal partial class VogenEfCoreConverters;

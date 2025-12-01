@@ -226,4 +226,79 @@ public sealed class BlobStorageService : IBlobStorageService
 
     return false;
   }
+
+
+  public async Task<Result<string>> UploadFileAsync(
+    string containerName,
+    string blobPath,
+    Stream content,
+    string contentType,
+    CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+
+      if (!await containerClient.ExistsAsync(cancellationToken))
+      {
+        return Result.Error($"Container '{containerName}' does not exist");
+      }
+
+      var blobClient = containerClient.GetBlobClient(blobPath);
+
+      var blobHttpHeaders = new BlobHttpHeaders
+      {
+        ContentType = contentType
+      };
+
+      await blobClient.UploadAsync(
+          content,
+          new BlobUploadOptions { HttpHeaders = blobHttpHeaders },
+          cancellationToken);
+
+      _logger.LogInformation(
+          "Uploaded file to blob: {BlobPath} in container: {ContainerName}",
+          blobPath,
+          containerName);
+
+      return Result.Success(blobClient.Uri.ToString());
+    }
+    catch (RequestFailedException ex)
+    {
+      _logger.LogError(ex,
+          "Failed to upload file {BlobPath} to container {ContainerName}",
+          blobPath,
+          containerName);
+      return Result.Error($"Failed to upload file: {ex.Message}");
+    }
+  }
+
+  public async Task<Result> DeleteFileAsync(
+      string containerName,
+      string blobPath,
+      CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+      var blobClient = containerClient.GetBlobClient(blobPath);
+
+      await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+
+      _logger.LogInformation(
+          "Deleted file: {BlobPath} from container: {ContainerName}",
+          blobPath,
+          containerName);
+
+      return Result.Success();
+    }
+    catch (RequestFailedException ex)
+    {
+      _logger.LogError(ex,
+          "Failed to delete file {BlobPath} from container {ContainerName}",
+          blobPath,
+          containerName);
+      return Result.Error($"Failed to delete file: {ex.Message}");
+    }
+  }
 }

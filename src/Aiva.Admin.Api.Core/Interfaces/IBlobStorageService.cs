@@ -41,4 +41,28 @@ public interface IBlobStorageService
   /// Checks if a virtual folder exists (has marker or any blobs with prefix)
   /// </summary>
   Task<bool> VirtualFolderExistsAsync(string containerName, string folderPath, CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Uploads a file to blob storage
+  /// </summary>
+  /// <param name="containerName">The container name</param>
+  /// <param name="blobPath">Full blob path (e.g., "folder/subfolder/filename.ext")</param>
+  /// <param name="content">File content stream</param>
+  /// <param name="contentType">MIME type of the file</param>
+  /// <param name="cancellationToken">Cancellation token</param>
+  /// <returns>Result with the blob URL on success</returns>
+  Task<Result<string>> UploadFileAsync(
+      string containerName,
+      string blobPath,
+      Stream content,
+      string contentType,
+      CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Deletes a file from blob storage
+  /// </summary>
+  Task<Result> DeleteFileAsync(
+      string containerName,
+      string blobPath,
+      CancellationToken cancellationToken = default);
 }
