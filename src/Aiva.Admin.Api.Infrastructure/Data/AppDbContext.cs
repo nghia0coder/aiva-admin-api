@@ -1,11 +1,12 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure.Data;
 
 using Core.ContributorAggregate;
+using Core.ConversationAggregate;
 using Core.FileAggregate;
 using Core.FolderAggregate;
 using Core.StorageAggregate;
 
-// dotnet ef migrations add AddFileTable -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
+// dotnet ef migrations add AddConversationChatMessageTable -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
@@ -13,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
   public DbSet<Storage> Storages => Set<Storage>();
   public DbSet<Folder> Folders => Set<Folder>();
   public DbSet<File> Files => Set<File>();
+  public DbSet<Conversation> Conversations => Set<Conversation>();
+  public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

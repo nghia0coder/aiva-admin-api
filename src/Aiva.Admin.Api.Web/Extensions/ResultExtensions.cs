@@ -87,6 +87,32 @@ public static class ResultExtensions
   }
 
   /// <summary>
+  /// Maps Result to TypedResults for endpoints that return Ok, NotFound, ValidationProblem, or ProblemHttpResult
+  /// </summary>
+  public static Results<Ok<TResponse>, NotFound, ValidationProblem, ProblemHttpResult> ToOkResult<TValue, TResponse>(
+    this Result<TValue> result,
+    Func<TValue, TResponse> mapResponse)
+  {
+    return result.Status switch
+    {
+      ResultStatus.Ok => TypedResults.Ok(mapResponse(result.Value)),
+      ResultStatus.NotFound => TypedResults.NotFound(),
+      ResultStatus.Invalid => TypedResults.ValidationProblem(
+        result.ValidationErrors
+          .GroupBy(e => e.Identifier ?? string.Empty)
+          .ToDictionary(
+            g => g.Key,
+            g => g.Select(e => e.ErrorMessage).ToArray()
+          )
+      ),
+      _ => TypedResults.Problem(
+        title: "Request failed",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status400BadRequest)
+    };
+  }
+
+  /// <summary>
   /// Maps Result to TypedResults for endpoints that return Ok only (like List endpoints)
   /// </summary>
   public static Ok<TResponse> ToOkOnlyResult<TValue, TResponse>(

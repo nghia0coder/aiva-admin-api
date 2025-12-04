@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
+using Aiva.Admin.Api.Infrastructure.AzureAI;
 using Core.Interfaces;
 using Core.Services;
 using Data;
@@ -46,6 +47,11 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Configure Azure AI / OpenAI
+    services.Configure<AzureAIConfiguration>(
+            config.GetSection(AzureAIConfiguration.SectionName));
+    services.AddSingleton<IChatCompletionService, AzureOpenAIChatService>();
 
     // Configure Azure Blob Storage
     services.Configure<BlobStorageConfiguration>(
