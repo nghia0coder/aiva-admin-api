@@ -4,6 +4,7 @@ using Aiva.Admin.Api.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Aiva.Admin.Api.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251207074529_AddFileMetadataTable")]
+    partial class AddFileMetadataTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -363,15 +366,6 @@ namespace Aiva.Admin.Api.Infrastructure.Data.Migrations
                     b.HasOne("Aiva.Admin.Api.Core.ConversationAggregate.Conversation", null)
                         .WithMany("Messages")
                         .HasForeignKey("ConversationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Aiva.Admin.Api.Core.FileAggregate.FileMetadata", b =>
-                {
-                    b.HasOne("Aiva.Admin.Api.Core.FileAggregate.File", null)
-                        .WithOne()
-                        .HasForeignKey("Aiva.Admin.Api.Core.FileAggregate.FileMetadata", "FileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

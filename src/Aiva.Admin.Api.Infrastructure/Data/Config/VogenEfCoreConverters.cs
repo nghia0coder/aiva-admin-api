@@ -18,4 +18,5 @@ using Core.StorageAggregate;
 
 [EfCoreConverter<FileId>]
 [EfCoreConverter<FileName>]
+[EfCoreConverter<FileMetadataId>]
 internal partial class VogenEfCoreConverters;
