@@ -11,4 +11,6 @@ public record FileDTO(
     string BlobUrl,
     int StorageId,
     int FolderId,
+    string FileProcessingStatus,
+    DateTime? QueuedAt,
     DateTime CreatedOnUtc);

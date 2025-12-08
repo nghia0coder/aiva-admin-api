@@ -8,6 +8,7 @@ using Core.StorageAggregate;
 
 public class UploadFileHandler(
     IRepository<File> fileRepository,
+    IRepository<FileMetadata> fileMetadataRepository,
     IReadRepository<Storage> storageRepository,
     IReadRepository<Folder> folderRepository,
     IBlobStorageService blobStorageService)
@@ -63,6 +64,7 @@ public class UploadFileHandler(
     var existingFile = await fileRepository.FirstOrDefaultAsync(existingFileSpec, cancellationToken);
 
     File savedFile;
+    FileMetadata metadata;
 
     if (existingFile is not null)
     {
@@ -76,6 +78,10 @@ public class UploadFileHandler(
 
       await fileRepository.UpdateAsync(existingFile, cancellationToken);
       savedFile = existingFile;
+
+      var metadataSpec = new FileMetadataByFileIdSpec(existingFile.Id);
+      metadata = await fileMetadataRepository.FirstOrDefaultAsync(metadataSpec, cancellationToken)
+                 ?? FileMetadata.Create(existingFile.Id);
     }
     else
     {
@@ -90,6 +96,11 @@ public class UploadFileHandler(
 
       file.SetBlobDetails(storedFileName, blobPath, uploadResult.Value);
       savedFile = await fileRepository.AddAsync(file, cancellationToken);
+
+      // CREATE FileMetadata with status = Queued
+      metadata = FileMetadata.Create(savedFile.Id);
+      metadata.MarkAsQueued();
+      await fileMetadataRepository.AddAsync(metadata, cancellationToken);
     }
 
     return new FileDTO(
@@ -103,32 +114,8 @@ public class UploadFileHandler(
         savedFile.BlobUrl,
         savedFile.StorageId.Value,
         savedFile.FolderId.Value,
+        metadata.Status.Name,
+        metadata.QueuedAt,
         savedFile.CreatedOnUtc);
-  }
-
-  /// <summary>
-  /// Sanitize filename to be safe for Azure Blob Storage
-  /// </summary>
-  private static string SanitizeFileName(string fileName)
-  {
-    // Characters invalid in Azure Blob names or URLs
-    var invalidChars = Path.GetInvalidFileNameChars()
-        .Concat(new[] { '#', '?', '%', '&', '+' })
-        .ToArray();
-
-    var sanitized = string.Join("_", fileName.Split(invalidChars));
-
-    // Replace spaces with underscores
-    sanitized = sanitized.Replace(" ", "_");
-
-    // Remove consecutive underscores
-    while (sanitized.Contains("__"))
-      sanitized = sanitized.Replace("__", "_");
-
-    // Limit length (Azure max blob name segment: ~255 chars)
-    if (sanitized.Length > 200)
-      sanitized = sanitized[..200];
-
-    return sanitized.Trim('_');
   }
 }

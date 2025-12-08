@@ -78,6 +78,8 @@ public class Upload(IMediator mediator)
             dto.BlobUrl,
             dto.StorageId,
             dto.FolderId,
+            dto.FileProcessingStatus,
+            dto.QueuedAt,
             dto.CreatedOnUtc));
   }
 }
