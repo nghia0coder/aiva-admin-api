@@ -1,6 +1,8 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.AzureAI;
+using Aiva.Admin.Api.Infrastructure.TextExtraction;
+using Aiva.Admin.Api.Infrastructure.TextExtraction.Extractors;
 using Core.Interfaces;
 using Core.Services;
 using Data;
@@ -47,6 +49,21 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Configure Text Extraction
+    services.Configure<TextExtractionConfiguration>(
+        config.GetSection(TextExtractionConfiguration.SectionName));
+
+    // Register extractors (Strategy Pattern)
+    services.AddSingleton<ITextExtractor, PdfTextExtractor>();
+    services.AddSingleton<ITextExtractor, WordTextExtractor>();
+    services.AddSingleton<ITextExtractor, ExcelTextExtractor>();
+    services.AddSingleton<ITextExtractor, PowerPointTextExtractor>();
+    services.AddSingleton<ITextExtractor, PlainTextExtractor>();
+    services.AddSingleton<ITextExtractor, ImageTextExtractor>();
+
+    // Register main extraction service
+    services.AddSingleton<ITextExtractionService, TextExtractionService>();
 
     // Configure Azure AI / OpenAI
     services.Configure<AzureAIConfiguration>(

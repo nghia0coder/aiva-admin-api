@@ -1,4 +1,4 @@
-namespace Aiva.Admin.Api.AspireTests.Collections;
+﻿namespace Aiva.Admin.Api.AspireTests.Collections;
 
 /// <summary>
 /// Collection definition for Aspire integration tests.
@@ -11,8 +11,5 @@ public class AspireTestCollection : ICollectionFixture<AspireAppFixture>
 {
   public const string Name = "Aspire Integration Tests";
 }
-
-
-
 
 

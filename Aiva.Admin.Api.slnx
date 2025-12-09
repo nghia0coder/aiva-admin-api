@@ -15,6 +15,7 @@
     <Project Path="src/Aiva.Admin.Api.Core/Aiva.Admin.Api.Core.csproj" />
     <Project Path="src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj" />
     <Project Path="src/Aiva.Admin.Api.UseCases/Aiva.Admin.Api.UseCases.csproj" />
+    <Project Path="src/Aiva.Admin.Api.Worker/Aiva.Admin.Api.Worker.csproj" />
     <Project Path="src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj" />
   </Folder>
   <Folder Name="/src/_aspire/">

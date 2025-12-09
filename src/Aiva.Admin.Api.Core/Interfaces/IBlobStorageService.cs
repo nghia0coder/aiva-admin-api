@@ -65,4 +65,16 @@ public interface IBlobStorageService
       string containerName,
       string blobPath,
       CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Downloads a file from blob storage
+  /// </summary>
+  /// <param name="containerName">The container name</param>
+  /// <param name="blobPath">Full blob path</param>
+  /// <param name="cancellationToken">Cancellation token</param>
+  /// <returns>Result with the file stream on success</returns>
+  Task<Result<Stream>> DownloadFileAsync(
+      string containerName,
+      string blobPath,
+      CancellationToken cancellationToken = default);
 }

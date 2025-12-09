@@ -301,4 +301,40 @@ public sealed class BlobStorageService : IBlobStorageService
       return Result.Error($"Failed to delete file: {ex.Message}");
     }
   }
+
+  public async Task<Result<Stream>> DownloadFileAsync(
+    string containerName,
+    string blobPath,
+    CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+      var blobClient = containerClient.GetBlobClient(blobPath);
+
+      if (!await blobClient.ExistsAsync(cancellationToken))
+      {
+        return Result.NotFound($"Blob '{blobPath}' not found in container '{containerName}'");
+      }
+
+      // Download the blob content (< 100MB)
+      var downloadResult = await blobClient.DownloadContentAsync(cancellationToken: cancellationToken);
+      var memoryStream = new MemoryStream(downloadResult.Value.Content.ToArray());
+
+      _logger.LogInformation(
+          "Downloaded file from blob: {BlobPath} in container: {ContainerName}",
+          blobPath,
+          containerName);
+
+      return Result.Success<Stream>(memoryStream);
+    }
+    catch (RequestFailedException ex)
+    {
+      _logger.LogError(ex,
+          "Failed to download file {BlobPath} from container {ContainerName}",
+          blobPath,
+          containerName);
+      return Result.Error($"Failed to download file: {ex.Message}");
+    }
+  }
 }

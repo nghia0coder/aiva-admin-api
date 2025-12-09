@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <Sdk Name="Microsoft.Build.CentralPackageVersions" Version="2.1.3" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>aiva-admin-worker-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Aspire Service Defaults -->
+    <PackageReference Include="Serilog.AspNetCore" />
+
+    <!-- Mediator for processing commands -->
+    <PackageReference Include="Mediator.SourceGenerator">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference Infrastructure for DB access, Blob storage, Text extraction -->
+    <ProjectReference Include="..\Aiva.Admin.Api.Infrastructure\Aiva.Admin.Api.Infrastructure.csproj" />
+
+    <!-- Reference UseCases for ProcessFileCommand -->
+    <ProjectReference Include="..\Aiva.Admin.Api.UseCases\Aiva.Admin.Api.UseCases.csproj" />
+
+    <!-- Aspire Service Defaults (OpenTelemetry, Health Checks) -->
+    <ProjectReference Include="..\Aiva.Admin.Api.ServiceDefaults\Aiva.Admin.Api.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>
