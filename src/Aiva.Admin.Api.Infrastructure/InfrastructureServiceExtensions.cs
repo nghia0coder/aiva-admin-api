@@ -1,17 +1,24 @@
-﻿namespace Aiva.Admin.Api.Infrastructure;
+﻿using Qdrant.Client;
 
-using Aiva.Admin.Api.Infrastructure.AzureAI;
-using Aiva.Admin.Api.Infrastructure.TextExtraction;
-using Aiva.Admin.Api.Infrastructure.TextExtraction.Extractors;
+namespace Aiva.Admin.Api.Infrastructure;
+
+using AzureAI;
 using Core.Interfaces;
 using Core.Services;
 using Data;
+using Data.Config;
 using Data.Queries;
 using Data.Seeding;
+using Embedding;
 using Infrastructure.BlobStorage;
+using TextExtraction;
+using TextExtraction.Extractors;
 using UseCases.Contributors.List;
 using UseCases.Folders.GetByStorage;
 using UseCases.Storages.List;
+using VectorStore;
+using VectorStore.AzureAISearch;
+using VectorStore.Qdrant;
 
 public static class InfrastructureServiceExtensions
 {
@@ -49,6 +56,53 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Configure Embedding Service
+    services.Configure<EmbeddingConfiguration>(
+        config.GetSection(EmbeddingConfiguration.SectionName));
+    services.AddSingleton<IEmbeddingService, AzureOpenAIEmbeddingService>();
+
+    // Configure Chunking Service
+    services.AddSingleton<IChunkingService, SemanticTextChunker>();
+
+    // Configure Vector Store
+    var vectorStoreConfig = config.GetSection(VectorStoreConfiguration.SectionName)
+        .Get<VectorStoreConfiguration>() ?? new VectorStoreConfiguration();
+
+    switch (vectorStoreConfig.Provider.ToLowerInvariant())
+    {
+      case "azureaisearch":
+        services.Configure<AzureAISearchConfiguration>(
+            config.GetSection(AzureAISearchConfiguration.SectionName));
+        services.AddSingleton<IVectorStoreService, AzureAISearchVectorStoreService>();
+        logger.LogInformation("Using Azure AI Search as vector store");
+        break;
+
+      case "qdrant":
+      default:
+        services.Configure<QdrantConfiguration>(
+            config.GetSection(QdrantConfiguration.SectionName));
+
+        // Register Qdrant client
+        services.AddSingleton<QdrantClient>(sp =>
+        {
+          var qdrantConfig = sp.GetRequiredService<IOptions<QdrantConfiguration>>().Value;
+
+          if (!string.IsNullOrEmpty(qdrantConfig.ApiKey))
+          {
+            return new QdrantClient(
+                qdrantConfig.Endpoint,
+                apiKey: qdrantConfig.ApiKey,
+                https: qdrantConfig.UseHttps);
+          }
+
+          return new QdrantClient(qdrantConfig.Endpoint, https: qdrantConfig.UseHttps);
+        });
+
+        services.AddSingleton<IVectorStoreService, QdrantVectorStoreService>();
+        logger.LogInformation("Using Qdrant as vector store");
+        break;
+    }
 
     // Configure Text Extraction
     services.Configure<TextExtractionConfiguration>(

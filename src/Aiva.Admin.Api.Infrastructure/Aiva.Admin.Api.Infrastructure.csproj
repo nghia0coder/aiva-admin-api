@@ -13,6 +13,8 @@
     <PackageReference Include="PdfPig" />
     <PackageReference Include="DocumentFormat.OpenXml" />
     <PackageReference Include="ClosedXML" />
+    <PackageReference Include="Qdrant.Client" />
+    <PackageReference Include="Azure.Search.Documents" />
     <PackageReference Include="Azure.AI.DocumentIntelligence" />
     <PackageReference Include="Azure.AI.OpenAI" />
     <PackageReference Include="Azure.Storage.Blobs" />
