@@ -104,6 +104,12 @@ public static class InfrastructureServiceExtensions
         break;
     }
 
+    // Register IVectorStoreSettings interface
+    services.Configure<VectorStoreConfiguration>(
+        config.GetSection(VectorStoreConfiguration.SectionName));
+    services.AddSingleton<IVectorStoreSettings>(sp =>
+        sp.GetRequiredService<IOptions<VectorStoreConfiguration>>().Value);
+
     // Configure Text Extraction
     services.Configure<TextExtractionConfiguration>(
         config.GetSection(TextExtractionConfiguration.SectionName));

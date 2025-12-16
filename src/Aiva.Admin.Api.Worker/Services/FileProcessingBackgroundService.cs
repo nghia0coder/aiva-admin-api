@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Worker.Services;
 
+using Aiva.Admin.Api.UseCases.Files.EmbedFile;
 using Core.FileAggregate;
 using Core.FileAggregate.Specifications;
 using UseCases.Files.ProcessFile;
@@ -99,28 +100,35 @@ public sealed class FileProcessingBackgroundService : BackgroundService
       await semaphore.WaitAsync(cancellationToken);
       try
       {
-        _logger.LogDebug(
-            "Processing file {FileId}, queued at {QueuedAt}",
-            metadata.FileId.Value,
-            metadata.QueuedAt);
+        // Step 1: Extract text
+        var extractCommand = new ProcessFileCommand(metadata.FileId);
+        var extractResult = await mediator.Send(extractCommand, cancellationToken);
 
-        var command = new ProcessFileCommand(metadata.FileId);
-        var result = await mediator.Send(command, cancellationToken);
+        if (!extractResult.IsSuccess)
+        {
+          _logger.LogWarning("Extraction failed for {FileId}: {Errors}",
+              metadata.FileId.Value, string.Join(", ", extractResult.Errors));
+          return;
+        }
 
-        if (result.IsSuccess)
+        _logger.LogInformation("Extracted {FileId}: {WordCount} words",
+            metadata.FileId.Value, extractResult.Value.WordCount);
+
+        // Step 2: Embed (only if extraction succeeded)
+        var embedCommand = new EmbedFileCommand(metadata.FileId);
+        var embedResult = await mediator.Send(embedCommand, cancellationToken);
+
+        if (embedResult.IsSuccess && embedResult.Value.Success)
         {
           Interlocked.Increment(ref processedCount);
-          _logger.LogInformation(
-              "File {FileId} processed successfully. Words: {WordCount}",
-              metadata.FileId.Value,
-              result.Value.WordCount);
+          _logger.LogInformation("Embedded {FileId}: {ChunkCount} chunks",
+              metadata.FileId.Value, embedResult.Value.ChunkCount);
         }
         else
         {
-          _logger.LogWarning(
-              "File {FileId} processing failed: {Errors}",
+          _logger.LogWarning("Embedding failed for {FileId}: {Error}",
               metadata.FileId.Value,
-              string.Join(", ", result.Errors));
+              embedResult.IsSuccess ? embedResult.Value.ErrorMessage : string.Join(", ", embedResult.Errors));
         }
       }
       catch (Exception ex)

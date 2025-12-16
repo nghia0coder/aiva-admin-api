@@ -1,9 +1,11 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure.VectorStore;
 
+using Core.Interfaces;
+
 /// <summary>
 /// Configuration for vector store services
 /// </summary>
-public sealed class VectorStoreConfiguration
+public sealed class VectorStoreConfiguration : IVectorStoreSettings
 {
   public const string SectionName = "VectorStore";
 
