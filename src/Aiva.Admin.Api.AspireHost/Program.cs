@@ -40,7 +40,7 @@ var qdrant = builder.AddQdrant("qdrant")
   .WithLifetime(ContainerLifetime.Persistent)
   .WithDataVolume("qdrant-data");
 
-var webApi = builder.AddProject<Projects.Aiva_Admin_Api_Web>("web")
+var webApi = builder.AddProject<Projects.Aiva_Admin_Api_Web>("backend")
   .WithReference(aivaChatbotDb)
   .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
   .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"))
@@ -48,6 +48,11 @@ var webApi = builder.AddProject<Projects.Aiva_Admin_Api_Web>("web")
   .WaitFor(papercut)
   .WaitFor(qdrant);
 
+var frontend = builder.AddNpmApp("frontend", @"D:\Aiva\aiva-admin-fe", "start")
+    .WithReference(webApi)
+    .WithHttpEndpoint(port: 4200, env: "PORT", isProxied: false)
+    .WithExternalHttpEndpoints()
+    .WaitFor(webApi);
 
 // Add the worker project for background processing
 builder.AddProject<Projects.Aiva_Admin_Api_Worker>("worker")
