@@ -9,7 +9,8 @@ public static class ServiceConfigs
   public static IServiceCollection AddServiceConfigs(this IServiceCollection services, Microsoft.Extensions.Logging.ILogger logger, WebApplicationBuilder builder)
   {
     services.AddInfrastructureServices(builder.Configuration, logger)
-            .AddMediatorSourceGen(logger);
+            .AddMediatorSourceGen(logger)
+            .AddCorsConfig(builder.Configuration, builder.Environment, logger);
 
     if (builder.Environment.IsDevelopment())
     {

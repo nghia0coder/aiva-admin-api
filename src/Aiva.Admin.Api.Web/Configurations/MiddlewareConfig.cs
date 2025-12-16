@@ -20,6 +20,7 @@ public static class MiddlewareConfig
       app.UseHsts();
     }
 
+    app.UseCors(CorsConfigs.DefaultPolicyName);
     app.UseFastEndpoints();
 
     if (app.Environment.IsDevelopment())
