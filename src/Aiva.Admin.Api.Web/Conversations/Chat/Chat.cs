@@ -16,7 +16,6 @@ public class Chat(IMediator mediator)
   public override void Configure()
   {
     Post(ChatRequest.Route);
-    AllowAnonymous();
     Summary(s =>
     {
       s.Summary = "Send a message and get AI response";

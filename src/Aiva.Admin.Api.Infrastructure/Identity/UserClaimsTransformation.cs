@@ -103,7 +103,7 @@ public class UserClaimsTransformation : IClaimsTransformation
 
     // Create new user (first-time login)
     var newEmail = principal.FindFirstValue("preferred_username")
-        ?? principal.FindFirstValue(ClaimTypes.Email)
+        ?? principal.Identities.FirstOrDefault()?.Name
         ?? "";
     var newDisplayName = principal.FindFirstValue("name")
         ?? principal.FindFirstValue(ClaimTypes.Name)

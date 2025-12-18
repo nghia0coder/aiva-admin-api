@@ -7,13 +7,6 @@ using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
 
-public class StreamChatRequest
-{
-  public const string Route = "/conversations/{ConversationId}/stream";
-  public Guid ConversationId { get; set; }
-  public string Message { get; set; } = string.Empty;
-}
-
 public class StreamChat(
     IRepository<Conversation> repository,
     IChatCompletionService chatService)
@@ -22,7 +15,6 @@ public class StreamChat(
   public override void Configure()
   {
     Post(StreamChatRequest.Route);
-    AllowAnonymous();
     Summary(s =>
     {
       s.Summary = "Stream AI response in real-time";

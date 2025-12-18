@@ -13,7 +13,6 @@ public class Create(IMediator mediator)
   public override void Configure()
   {
     Post(CreateConversationRequest.Route);
-    AllowAnonymous(); // TODO: Add authentication
     Summary(s =>
     {
       s.Summary = "Create a new AI conversation";

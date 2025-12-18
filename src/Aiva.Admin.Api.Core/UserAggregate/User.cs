@@ -43,7 +43,6 @@ public class User : AuditableEntity<User, UserId>, IAggregateRoot
 
   private User(AzureAdObjectId azureAdObjectId, string email, string displayName)
   {
-    Id = UserId.New();
     AzureAdObjectId = azureAdObjectId;
     Email = Guard.Against.NullOrWhiteSpace(email);
     DisplayName = Guard.Against.NullOrWhiteSpace(displayName);
