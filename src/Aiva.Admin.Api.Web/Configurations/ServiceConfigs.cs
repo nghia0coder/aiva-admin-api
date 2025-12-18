@@ -1,6 +1,8 @@
 ﻿using Aiva.Admin.Api.Core.Interfaces;
 using Aiva.Admin.Api.Infrastructure;
 using Aiva.Admin.Api.Infrastructure.Email;
+using Aiva.Admin.Api.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Aiva.Admin.Api.Web.Configurations;
 
@@ -11,6 +13,15 @@ public static class ServiceConfigs
     services.AddInfrastructureServices(builder.Configuration, logger)
             .AddMediatorSourceGen(logger)
             .AddCorsConfig(builder.Configuration, builder.Environment, logger);
+
+    // Add Authentication
+    services.AddAuthConfig(builder.Configuration, logger);
+
+    // Add Identity Services
+    services.AddHttpContextAccessor();
+    services.AddMemoryCache();
+    services.AddScoped<ICurrentUserService, CurrentUserService>();
+    services.AddScoped<IClaimsTransformation, UserClaimsTransformation>();
 
     if (builder.Environment.IsDevelopment())
     {
@@ -30,6 +41,4 @@ public static class ServiceConfigs
 
     return services;
   }
-
-
 }

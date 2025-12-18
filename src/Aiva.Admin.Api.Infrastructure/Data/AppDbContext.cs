@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure.Data;
 
+using Aiva.Admin.Api.Core.UserAggregate;
 using Core.ContributorAggregate;
 using Core.ConversationAggregate;
 using Core.FileAggregate;
@@ -17,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
   public DbSet<FileMetadata> FileMetadata => Set<FileMetadata>();
   public DbSet<Conversation> Conversations => Set<Conversation>();
   public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+  public DbSet<User> Users => Set<User>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {

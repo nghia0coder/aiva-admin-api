@@ -17,7 +17,6 @@ public class Create(IMediator mediator)
   public override void Configure()
   {
     Post(CreateStorageRequest.Route);
-    AllowAnonymous();
     Summary(s =>
     {
       s.Summary = "Create a new storage";

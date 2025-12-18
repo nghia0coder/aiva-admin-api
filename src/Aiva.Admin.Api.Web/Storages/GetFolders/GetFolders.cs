@@ -9,7 +9,6 @@ public sealed class GetFolders(IMediator mediator) : Endpoint<GetFoldersRequest,
   public override void Configure()
   {
     Get("/storages/{StorageId}/folders");
-    AllowAnonymous();
     Summary(s =>
     {
       s.Summary = "Get all folders for a storage";

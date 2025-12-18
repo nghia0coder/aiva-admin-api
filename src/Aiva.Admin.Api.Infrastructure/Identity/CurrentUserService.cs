@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 using Aiva.Admin.Api.Core.Interfaces;
+using Aiva.Admin.Api.Core.UserAggregate;
 using Microsoft.AspNetCore.Http;
 
 namespace Aiva.Admin.Api.Infrastructure.Identity;
@@ -11,6 +12,20 @@ public class CurrentUserService : ICurrentUserService
   public CurrentUserService(IHttpContextAccessor httpContextAccessor)
   {
     _httpContextAccessor = httpContextAccessor;
+  }
+
+  /// <summary>
+  /// Internal user ID - populated by UserClaimsTransformation
+  /// </summary>
+  public UserId? UserId
+  {
+    get
+    {
+      var claim = User?.FindFirstValue(UserClaimsTransformation.InternalUserIdClaimType);
+      return claim is not null && int.TryParse(claim, out var id)
+          ? Core.UserAggregate.UserId.From(id)
+          : null;
+    }
   }
 
   private ClaimsPrincipal? User => _httpContextAccessor.HttpContext?.User;

@@ -10,8 +10,6 @@ public class List(IMediator mediator)
   public override void Configure()
   {
     Get("/Storages");
-    AllowAnonymous();
-
     Summary(s =>
     {
       s.Summary = "List storages with pagination";
