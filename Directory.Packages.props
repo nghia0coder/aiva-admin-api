@@ -65,5 +65,6 @@
     <PackageVersion Include="Azure.Search.Documents" Version="11.6.0" />
     <PackageVersion Include="Aspire.Hosting.Qdrant" Version="9.0.0" />
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Identity.Web" Version="3.11.0" />
   </ItemGroup>
 </Project>

@@ -26,8 +26,9 @@
     <PackageReference Include="NimblePros.Metronome" />
     <PackageReference Include="SQLite" />
     <PackageReference Include="Vogen" />
+    <PackageReference Include="Microsoft.Identity.Web" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Aiva.Admin.Api.Core\Aiva.Admin.Api.Core.csproj" />
     <ProjectReference Include="..\Aiva.Admin.Api.UseCases\Aiva.Admin.Api.UseCases.csproj" />

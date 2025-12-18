@@ -6,6 +6,7 @@ using Core.ContributorAggregate;
 using Core.FileAggregate;
 using Core.FolderAggregate;
 using Core.StorageAggregate;
+using Core.UserAggregate;
 
 [EfCoreConverter<ContributorId>]
 [EfCoreConverter<ContributorName>]
@@ -19,4 +20,7 @@ using Core.StorageAggregate;
 [EfCoreConverter<FileId>]
 [EfCoreConverter<FileName>]
 [EfCoreConverter<FileMetadataId>]
+
+[EfCoreConverter<UserId>]
+[EfCoreConverter<AzureAdObjectId>]
 internal partial class VogenEfCoreConverters;

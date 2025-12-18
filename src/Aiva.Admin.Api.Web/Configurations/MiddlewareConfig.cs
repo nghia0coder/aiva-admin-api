@@ -20,6 +20,8 @@ public static class MiddlewareConfig
       app.UseHsts();
     }
 
+    app.UseAuthentication();
+    app.UseAuthorization();
     app.UseCors(CorsConfigs.DefaultPolicyName);
     app.UseFastEndpoints();
 
