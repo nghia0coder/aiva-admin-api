@@ -3,6 +3,7 @@
 namespace Aiva.Admin.Api.Core.ConversationAggregate;
 
 using ConversationAggregate.Events;
+using UserAggregate;
 
 public class Conversation : EntityBase<Conversation, ConversationId>, IAggregateRoot
 {
@@ -13,10 +14,11 @@ public class Conversation : EntityBase<Conversation, ConversationId>, IAggregate
   public DateTime CreatedAt { get; private set; }
   public DateTime? LastMessageAt { get; private set; }
   public IReadOnlyList<ChatMessage> Messages => _messages.AsReadOnly();
+  public UserId UserId { get; private set; }
 
-  private Conversation() { } // EF Core
+  private Conversation() { }
 
-  public Conversation(string title, string? systemPrompt = null)
+  public Conversation(UserId? userId, string title, string? systemPrompt = null)
   {
     Id = ConversationId.New();
     Title = Guard.Against.NullOrWhiteSpace(title);

@@ -1,4 +1,5 @@
 ﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+using Aiva.Admin.Api.Core.UserAggregate;
 
 namespace Aiva.Admin.Api.Infrastructure.Data.Config;
 
@@ -14,6 +15,12 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
         .HasConversion(
             id => id.Value,
             value => ConversationId.From(value));
+
+    builder.Property(c => c.UserId)
+    .HasConversion(
+        v => v.Value,
+        v => UserId.From(v))
+    .IsRequired();
 
     builder.Property(c => c.Title)
         .HasMaxLength(200)
@@ -32,6 +39,9 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
 
     builder.Navigation(c => c.Messages)
         .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+    builder.HasIndex(c => c.UserId);
+    builder.HasIndex(c => new { c.UserId, c.LastMessageAt });
   }
 }
 

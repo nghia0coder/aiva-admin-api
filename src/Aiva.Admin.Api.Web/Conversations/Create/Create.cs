@@ -1,10 +1,11 @@
-﻿using Aiva.Admin.Api.UseCases.Conversations.Create;
+﻿using Aiva.Admin.Api.Core.Interfaces;
+using Aiva.Admin.Api.UseCases.Conversations.Create;
 using Aiva.Admin.Api.Web.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Aiva.Admin.Api.Web.Conversations.Create;
 
-public class Create(IMediator mediator)
+public class Create(IMediator mediator, ICurrentUserService currentUser)
     : Endpoint<CreateConversationRequest,
         Results<Created<CreateConversationResponse>,
                 ValidationProblem,
@@ -29,7 +30,15 @@ public class Create(IMediator mediator)
   public override async Task<Results<Created<CreateConversationResponse>, ValidationProblem, ProblemHttpResult>>
       ExecuteAsync(CreateConversationRequest request, CancellationToken ct)
   {
-    var command = new CreateConversationCommand(request.Title, request.SystemPrompt);
+
+    if (!currentUser.IsAuthenticated || currentUser.UserId is null)
+    {
+      return TypedResults.Problem(
+          detail: "User not authenticated",
+          statusCode: StatusCodes.Status401Unauthorized);
+    }
+
+    var command = new CreateConversationCommand(currentUser.UserId, request.Title, request.SystemPrompt);
     var result = await mediator.Send(command, ct);
 
     return result.ToCreatedResult(

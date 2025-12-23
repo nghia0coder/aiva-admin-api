@@ -9,7 +9,7 @@ public class CreateConversationHandler(IRepository<Conversation> repository)
       CreateConversationCommand command,
       CancellationToken cancellationToken)
   {
-    var conversation = new Conversation(command.Title, command.SystemPrompt);
+    var conversation = new Conversation(command.UserId, command.Title, command.SystemPrompt);
 
     await repository.AddAsync(conversation, cancellationToken);
 
