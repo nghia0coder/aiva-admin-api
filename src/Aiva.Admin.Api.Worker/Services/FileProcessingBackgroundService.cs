@@ -1,8 +1,9 @@
 ﻿namespace Aiva.Admin.Api.Worker.Services;
 
-using Aiva.Admin.Api.UseCases.Files.EmbedFile;
 using Core.FileAggregate;
 using Core.FileAggregate.Specifications;
+using Infrastructure.Configuration;
+using UseCases.Files.EmbedFile;
 using UseCases.Files.ProcessFile;
 
 /// <summary>
@@ -13,15 +14,15 @@ public sealed class FileProcessingBackgroundService : BackgroundService
 {
   private readonly IServiceScopeFactory _scopeFactory;
   private readonly ILogger<FileProcessingBackgroundService> _logger;
-  private readonly WorkerConfiguration _config;
+  private readonly AppSettings _appSettings;
 
   public FileProcessingBackgroundService(
       IServiceScopeFactory scopeFactory,
-      IOptions<WorkerConfiguration> config,
+      AppSettings appSettings,
       ILogger<FileProcessingBackgroundService> logger)
   {
     _scopeFactory = scopeFactory;
-    _config = config.Value;
+    _appSettings = appSettings;
     _logger = logger;
   }
 
@@ -29,11 +30,11 @@ public sealed class FileProcessingBackgroundService : BackgroundService
   {
     _logger.LogInformation(
         "File Processing Worker started. Polling every {Interval}s, BatchSize: {BatchSize}, MaxConcurrency: {MaxConcurrency}",
-        _config.PollingIntervalSeconds,
-        _config.BatchSize,
-        _config.MaxConcurrency);
+        _appSettings.Worker.PollingIntervalSeconds,
+        _appSettings.Worker.BatchSize,
+        _appSettings.Worker.MaxConcurrency);
 
-    if (!_config.Enabled)
+    if (!_appSettings.Worker.Enabled)
     {
       _logger.LogWarning("File Processing Worker is DISABLED via configuration");
       return;
@@ -63,7 +64,7 @@ public sealed class FileProcessingBackgroundService : BackgroundService
         _logger.LogError(ex, "Error in file processing worker loop");
       }
 
-      await Task.Delay(TimeSpan.FromSeconds(_config.PollingIntervalSeconds), stoppingToken);
+      await Task.Delay(TimeSpan.FromSeconds(_appSettings.Worker.PollingIntervalSeconds), stoppingToken);
     }
 
     _logger.LogInformation("File Processing Worker stopped");
@@ -79,7 +80,7 @@ public sealed class FileProcessingBackgroundService : BackgroundService
         .GetRequiredService<IMediator>();
 
     // Get queued files
-    var queuedFilesSpec = new QueuedFilesForProcessingSpec(_config.BatchSize);
+    var queuedFilesSpec = new QueuedFilesForProcessingSpec(_appSettings.Worker.BatchSize);
     var queuedFiles = await metadataRepository.ListAsync(queuedFilesSpec, cancellationToken);
 
     if (queuedFiles.Count == 0)
@@ -92,7 +93,7 @@ public sealed class FileProcessingBackgroundService : BackgroundService
         queuedFiles.Count);
 
     // Process with limited concurrency
-    using var semaphore = new SemaphoreSlim(_config.MaxConcurrency);
+    using var semaphore = new SemaphoreSlim(_appSettings.Worker.MaxConcurrency);
     var processedCount = 0;
 
     var tasks = queuedFiles.Select(async metadata =>

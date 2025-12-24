@@ -13,7 +13,7 @@ public static class AuthConfig
       ILogger logger)
   {
     services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddMicrosoftIdentityWebApi(configuration.GetSection("AzureAd"));
+        .AddMicrosoftIdentityWebApi(configuration.GetSection("AppSettings:AzureAd"));
 
     services.AddAuthorization();
 

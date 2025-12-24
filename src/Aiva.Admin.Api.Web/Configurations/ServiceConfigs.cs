@@ -1,14 +1,17 @@
-﻿using Aiva.Admin.Api.Core.Interfaces;
-using Aiva.Admin.Api.Infrastructure;
-using Aiva.Admin.Api.Infrastructure.Email;
-using Aiva.Admin.Api.Infrastructure.Identity;
+﻿
 using Microsoft.AspNetCore.Authentication;
 
 namespace Aiva.Admin.Api.Web.Configurations;
 
+using Core.Interfaces;
+using Infrastructure;
+using Infrastructure.Email;
+using Infrastructure.Identity;
+using Microsoft.Extensions.Logging;
+
 public static class ServiceConfigs
 {
-  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, Microsoft.Extensions.Logging.ILogger logger, WebApplicationBuilder builder)
+  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, ILogger logger, WebApplicationBuilder builder)
   {
     services.AddInfrastructureServices(builder.Configuration, logger)
             .AddMediatorSourceGen(logger)

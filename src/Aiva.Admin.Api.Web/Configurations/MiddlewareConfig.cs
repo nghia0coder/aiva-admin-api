@@ -1,13 +1,15 @@
-﻿using Aiva.Admin.Api.Infrastructure.Data;
-using Aiva.Admin.Api.Infrastructure.Data.Seeding;
-using Ardalis.ListStartupServices;
+﻿using Ardalis.ListStartupServices;
 using Scalar.AspNetCore;
 
 namespace Aiva.Admin.Api.Web.Configurations;
 
+using Infrastructure.Configuration;
+using Infrastructure.Data;
+using Infrastructure.Data.Seeding;
+
 public static class MiddlewareConfig
 {
-  public static async Task<IApplicationBuilder> UseAppMiddlewareAndSeedDatabase(this WebApplication app)
+  public static async Task<IApplicationBuilder> UseAppMiddlewareAndSeedDatabase(this WebApplication app, AppSettings appSettings)
   {
     if (app.Environment.IsDevelopment())
     {
@@ -31,14 +33,21 @@ public static class MiddlewareConfig
       {
         options.Path = "/openapi/{documentName}.json";
       });
-      app.MapScalarApiReference();
+      app.MapScalarApiReference(options => options
+         .AddPreferredSecuritySchemes("OAuth2")
+         .AddAuthorizationCodeFlow("OAuth2", flow =>
+          {
+            flow.ClientId = appSettings.AzureAd.ScalarClientId;
+            flow.Pkce = Pkce.Sha256;
+            flow.SelectedScopes = [$"api://{appSettings.AzureAd.ClientId}/.default"];
+          }));
     }
 
     app.UseHttpsRedirection(); // Note this will drop Authorization headers
 
     // Run migrations and seed in Development or when explicitly requested via environment variable
     var shouldMigrate = app.Environment.IsDevelopment() ||
-                        app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
+                        appSettings.Database.ApplyMigrationsOnStartup;
 
     if (shouldMigrate)
     {

@@ -1,27 +1,28 @@
 ﻿using System.ClientModel;
 using System.Runtime.CompilerServices;
+using Ardalis.Result;
 using Azure;
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using OpenAI.Chat;
 
 namespace Aiva.Admin.Api.Infrastructure.AzureAI;
 
-using Aiva.Admin.Api.Core.ConversationAggregate;
-using Ardalis.Result;
+using Configuration;
+using Core.ConversationAggregate;
 using Core.Interfaces;
-using OpenAI.Chat;
 
 public sealed class AzureOpenAIChatService : IChatCompletionService
 {
   private readonly ChatClient _chatClient;
-  private readonly AzureAIConfiguration _configuration;
+  private readonly AppSettings _appSettings;
   private readonly ILogger<AzureOpenAIChatService> _logger;
 
   public AzureOpenAIChatService(
-      IOptions<AzureAIConfiguration> options,
+      AppSettings appSettings,
       ILogger<AzureOpenAIChatService> logger)
   {
-    _configuration = options.Value;
+    _appSettings = appSettings;
     _logger = logger;
     _chatClient = CreateChatClient();
   }
@@ -30,17 +31,17 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
   {
     AzureOpenAIClient azureClient;
 
-    if (_configuration.UseManagedIdentity)
+    if (_appSettings.AzureAI.UseManagedIdentity)
     {
       azureClient = new AzureOpenAIClient(
-          new Uri(_configuration.Endpoint),
+          new Uri(_appSettings.AzureAI.Endpoint),
           new DefaultAzureCredential());
     }
-    else if (!string.IsNullOrEmpty(_configuration.ApiKey))
+    else if (!string.IsNullOrEmpty(_appSettings.AzureAI.ApiKey))
     {
       azureClient = new AzureOpenAIClient(
-          new Uri(_configuration.Endpoint),
-          new AzureKeyCredential(_configuration.ApiKey));
+          new Uri(_appSettings.AzureAI.Endpoint),
+          new AzureKeyCredential(_appSettings.AzureAI.ApiKey));
     }
     else
     {
@@ -49,7 +50,7 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
           "Provide either ApiKey or enable UseManagedIdentity.");
     }
 
-    return azureClient.GetChatClient(_configuration.DeploymentName);
+    return azureClient.GetChatClient(_appSettings.AzureAI.DeploymentName);
   }
 
   public async Task<Result<string>> GetCompletionAsync(
@@ -62,8 +63,8 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
 
       var options = new ChatCompletionOptions
       {
-        MaxOutputTokenCount = _configuration.MaxTokens,
-        Temperature = _configuration.Temperature
+        MaxOutputTokenCount = _appSettings.AzureAI.MaxTokens,
+        Temperature = _appSettings.AzureAI.Temperature
       };
 
       ClientResult<ChatCompletion> response = await _chatClient.CompleteChatAsync(
@@ -99,8 +100,8 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
 
     var options = new ChatCompletionOptions
     {
-      MaxOutputTokenCount = _configuration.MaxTokens,
-      Temperature = _configuration.Temperature
+      MaxOutputTokenCount = _appSettings.AzureAI.MaxTokens,
+      Temperature = _appSettings.AzureAI.Temperature
     };
 
     AsyncCollectionResult<StreamingChatCompletionUpdate> streamingUpdates;

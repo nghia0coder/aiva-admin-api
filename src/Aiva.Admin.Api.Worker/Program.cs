@@ -1,6 +1,6 @@
 ﻿using Aiva.Admin.Api.Infrastructure;
+using Aiva.Admin.Api.Infrastructure.Configuration;
 using Aiva.Admin.Api.UseCases.Files.ProcessFile;
-using Aiva.Admin.Api.Worker;
 using Aiva.Admin.Api.Worker.Services;
 using Serilog;
 using Serilog.Extensions.Logging;
@@ -24,8 +24,16 @@ startupLogger.LogInformation("Starting Aiva Admin Worker");
 
 builder.AddServiceDefaults();
 
-builder.Services.Configure<WorkerConfiguration>(
-    builder.Configuration.GetSection(WorkerConfiguration.SectionName));
+startupLogger.LogInformation("Configuring AppSettings");
+
+// Configure AppSettings
+var appSettingsSection = builder.Configuration.GetSection("AppSettings");
+builder.Services.Configure<AppSettings>(appSettingsSection);
+var appSettings = appSettingsSection.Get<AppSettings>()
+    ?? throw new InvalidOperationException(
+        "AppSettings configuration section is missing or invalid. " +
+        "Please ensure 'AppSettings' section exists in appsettings.json");
+builder.Services.AddSingleton(appSettings);
 
 builder.Services.AddInfrastructureServices(builder.Configuration, startupLogger);
 
