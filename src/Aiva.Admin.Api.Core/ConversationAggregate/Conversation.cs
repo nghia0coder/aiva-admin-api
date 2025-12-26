@@ -20,7 +20,10 @@ public class Conversation : EntityBase<Conversation, ConversationId>, IAggregate
 
   public Conversation(UserId? userId, string title, string? systemPrompt = null)
   {
+    Guard.Against.Null(userId, nameof(userId));
+
     Id = ConversationId.New();
+    UserId = userId.Value;
     Title = Guard.Against.NullOrWhiteSpace(title);
     SystemPrompt = systemPrompt;
     CreatedAt = DateTime.UtcNow;
