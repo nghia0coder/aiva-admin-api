@@ -10,7 +10,7 @@ public class GetConversationHistoryHandler(IReadRepository<Conversation> reposit
       GetConversationHistoryQuery query,
       CancellationToken cancellationToken)
   {
-    var spec = new ConversationByIdWithMessagesSpec(query.ConversationId);
+    var spec = new ConversationByIdAndUserWithMessagesSpec(query.ConversationId, query.UserId);
     var conversation = await repository.FirstOrDefaultAsync(spec, cancellationToken);
 
     if (conversation is null)
@@ -29,6 +29,7 @@ public class GetConversationHistoryHandler(IReadRepository<Conversation> reposit
                 m.Role.Name,
                 m.Content,
                 m.CreatedAt))
+            .OrderBy(m => m.CreatedAt)
             .ToList());
 
     return Result.Success(dto);
