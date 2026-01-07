@@ -1,6 +1,6 @@
-﻿namespace Aiva.Admin.Api.Web.Conversations.ListByUser;
+﻿namespace Aiva.Admin.Api.Web.Conversations.ListMine;
 
-public record ListUserConversationsResponse(
+public record ListMyConversationsResponse(
     IReadOnlyList<ConversationRecord> Items,
     int Page,
     int PerPage,

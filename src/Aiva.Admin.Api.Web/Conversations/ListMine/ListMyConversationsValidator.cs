@@ -1,15 +1,11 @@
 ﻿using FluentValidation;
 
-namespace Aiva.Admin.Api.Web.Conversations.ListByUser;
+namespace Aiva.Admin.Api.Web.Conversations.ListMine;
 
-public class ListUserConversationsValidator : Validator<ListUserConversationsRequest>
+public class ListMyConversationsValidator : Validator<ListMyConversationsRequest>
 {
-  public ListUserConversationsValidator()
+  public ListMyConversationsValidator()
   {
-    RuleFor(x => x.UserId)
-        .GreaterThan(0)
-        .WithMessage("User ID must be a positive integer.");
-
     RuleFor(x => x.Page)
         .GreaterThanOrEqualTo(1)
         .WithMessage("Page must be at least 1.");
