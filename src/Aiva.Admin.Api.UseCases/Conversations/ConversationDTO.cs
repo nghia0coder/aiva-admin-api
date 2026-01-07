@@ -11,11 +11,28 @@ public record ChatMessageDTO(
     Guid Id,
     string Role,
     string Content,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    MessageMetadataDTO? Metadata = null);
+
+public record MessageMetadataDTO(
+    int TokenCount,
+    TimeSpan? ResponseTime = null,
+    string? Model = null,
+    bool IsEdited = false,
+    DateTime? EditedAt = null,
+    string Status = "completed");
 
 public record ConversationDetailDTO(
     Guid Id,
     string Title,
     string? SystemPrompt,
     DateTime CreatedAt,
-    IReadOnlyList<ChatMessageDTO> Messages);
+    IReadOnlyList<ChatMessageDTO> Messages,
+    ConversationMetadataDTO? Metadata = null);
+
+public record ConversationMetadataDTO(
+    int TotalMessages,
+    int TotalTokens,
+    DateTime LastActiveAt,
+    string Status = "active",
+    bool IsArchived = false);

@@ -8,6 +8,7 @@ public sealed class ConversationByIdAndUserWithMessagesSpec : Specification<Conv
   {
     Query
         .Where(c => c.Id == conversationId && c.UserId == userId)
-        .Include(c => c.Messages);
+        .Include(c => c.Messages.OrderBy(m => m.CreatedAt))
+        .AsNoTracking();
   }
 }
