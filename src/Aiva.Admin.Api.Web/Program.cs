@@ -26,8 +26,10 @@ builder.Services.AddSingleton(appSettings);
 startupLogger.LogInformation("Configure successful application settings");
 
 builder.Services.AddOptionConfigs(builder.Configuration, startupLogger, builder);
-builder.Services.AddServiceConfigs(startupLogger, builder);
+builder.Services.AddServiceConfigs(startupLogger, builder, appSettings);
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddSignalR();
 
 builder.Services.AddFastEndpoints()
                 .SwaggerDocument(o =>

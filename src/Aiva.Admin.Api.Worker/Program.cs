@@ -35,7 +35,7 @@ var appSettings = appSettingsSection.Get<AppSettings>()
         "Please ensure 'AppSettings' section exists in appsettings.json");
 builder.Services.AddSingleton(appSettings);
 
-builder.Services.AddInfrastructureServices(builder.Configuration, startupLogger);
+builder.Services.AddInfrastructureServices(appSettings, builder.Configuration, startupLogger);
 
 builder.Services.AddMediator(options =>
 {
@@ -49,6 +49,7 @@ builder.Services.AddMediator(options =>
 });
 
 builder.Services.AddHostedService<FileProcessingBackgroundService>();
+builder.Services.AddHostedService<TitleGenerationBackgroundService>();
 
 var host = builder.Build();
 

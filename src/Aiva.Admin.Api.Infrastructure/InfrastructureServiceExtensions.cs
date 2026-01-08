@@ -2,6 +2,7 @@
 
 namespace Aiva.Admin.Api.Infrastructure;
 
+using Aiva.Admin.Api.Infrastructure.Configuration;
 using AzureAI;
 using Core.Interfaces;
 using Core.Services;
@@ -24,6 +25,7 @@ public static class InfrastructureServiceExtensions
 {
   public static IServiceCollection AddInfrastructureServices(
     this IServiceCollection services,
+    AppSettings appSettings,
     ConfigurationManager config,
     ILogger logger)
   {
@@ -31,9 +33,9 @@ public static class InfrastructureServiceExtensions
     // 1. "cleanarchitecture" - provided by Aspire when using .WithReference(cleanArchDb)
     // 2. "DefaultConnection" - traditional SQL Server connection
     // 3. "SqliteConnection" - fallback to SQLite
-    string? connectionString = config.GetConnectionString("aiva-chatbot-db")
-                               ?? config.GetConnectionString("DefaultConnection")
-                               ?? config.GetConnectionString("SqliteConnection");
+    string? connectionString = config.GetConnectionString(appSettings.ConnectionStrings.AivaChatbotDb)
+                               ?? appSettings.ConnectionStrings.DefaultConnection
+                               ?? appSettings.ConnectionStrings.SqliteConnection;
     Guard.Against.Null(connectionString);
 
     services.AddScoped<EventDispatchInterceptor>();
@@ -44,8 +46,8 @@ public static class InfrastructureServiceExtensions
       var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
 
       // Use SQL Server if Aspire or DefaultConnection is available, otherwise use SQLite
-      if (config.GetConnectionString("aiva-chatbot-db") != null ||
-          config.GetConnectionString("DefaultConnection") != null)
+      if (config.GetConnectionString(appSettings.ConnectionStrings.AivaChatbotDb) != null ||
+          appSettings.ConnectionStrings.DefaultConnection != null)
       {
         options.UseSqlServer(connectionString);
       }
@@ -128,7 +130,9 @@ public static class InfrastructureServiceExtensions
     // Configure Azure AI / OpenAI
     services.Configure<AzureAIConfiguration>(
             config.GetSection(AzureAIConfiguration.SectionName));
+
     services.AddSingleton<IChatCompletionService, AzureOpenAIChatService>();
+    services.AddSingleton<ITitleGenerationService, AzureOpenAITitleGenerationService>();
 
     // Configure Azure Blob Storage
     services.Configure<BlobStorageConfiguration>(

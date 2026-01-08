@@ -37,6 +37,13 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
         .HasForeignKey(m => m.ConversationId)
         .OnDelete(DeleteBehavior.Cascade);
 
+    builder.Property(c => c.TitleStatus)
+        .HasConversion<int>()
+        .HasDefaultValue(TitleGenerationStatus.Pending)
+        .IsRequired();
+
+    builder.HasIndex(c => c.TitleStatus);
+
     builder.Navigation(c => c.Messages)
         .UsePropertyAccessMode(PropertyAccessMode.Field);
 

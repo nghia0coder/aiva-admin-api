@@ -1,13 +1,13 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure.Data;
 
-using Aiva.Admin.Api.Core.UserAggregate;
+using Core.UserAggregate;
 using Core.ContributorAggregate;
 using Core.ConversationAggregate;
 using Core.FileAggregate;
 using Core.FolderAggregate;
 using Core.StorageAggregate;
 
-// dotnet ef migrations add AddFileMetadataForeignKey -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
+// dotnet ef migrations add AddTitleGenerationStatus -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {

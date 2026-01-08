@@ -13,6 +13,7 @@ public class Conversation : EntityBase<Conversation, ConversationId>, IAggregate
   public string? SystemPrompt { get; private set; }
   public DateTime CreatedAt { get; private set; }
   public DateTime? LastMessageAt { get; private set; }
+  public TitleGenerationStatus TitleStatus { get; private set; } = TitleGenerationStatus.Pending;
   public IReadOnlyList<ChatMessage> Messages => _messages.AsReadOnly();
   public UserId UserId { get; private set; }
 
@@ -47,9 +48,41 @@ public class Conversation : EntityBase<Conversation, ConversationId>, IAggregate
     return message;
   }
 
+  /// <summary>
+  /// Check if conversation is ready for title generation
+  /// (has at least one user message and one assistant response)
+  /// </summary>
+  public bool IsReadyForTitleGeneration()
+  {
+    if (TitleStatus != TitleGenerationStatus.Pending)
+      return false;
+
+    var hasUserMessage = _messages.Any(m => m.Role == ChatRole.User);
+    var hasAssistantResponse = _messages.Any(m => m.Role == ChatRole.Assistant);
+
+    return hasUserMessage && hasAssistantResponse;
+  }
+
+  public void QueueForTitleGeneration()
+  {
+    if (TitleStatus != TitleGenerationStatus.Pending)
+      return;
+
+    TitleStatus = TitleGenerationStatus.Queued;
+    RegisterDomainEvent(new TitleGenerationQueuedEvent(this));
+  }
+
+  public void SetGeneratedTitle(string generatedTitle)
+  {
+    Title = Guard.Against.NullOrWhiteSpace(generatedTitle);
+    TitleStatus = TitleGenerationStatus.Generated;
+    RegisterDomainEvent(new TitleGeneratedEvent(this, generatedTitle));
+  }
+
   public Conversation UpdateTitle(string newTitle)
   {
     Title = Guard.Against.NullOrWhiteSpace(newTitle);
+    TitleStatus = TitleGenerationStatus.Manual;
     return this;
   }
 }

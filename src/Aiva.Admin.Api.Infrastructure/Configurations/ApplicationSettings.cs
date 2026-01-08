@@ -17,10 +17,12 @@ public class AppSettings
   public AzureAISearchSettings AzureAISearch { get; set; } = new();
   public MailserverSettings Mailserver { get; set; } = new();
   public WorkerSettings Worker { get; set; } = new();
+  public TitleGenerationSettings TitleGeneration { get; set; } = new();
 }
 
 public class ConnectionStringsSettings
 {
+  public string AivaChatbotDb { get; set; } = "aiva-chatbot-db";
   public string DefaultConnection { get; set; } = string.Empty;
   public string SqliteConnection { get; set; } = string.Empty;
 }
@@ -131,4 +133,14 @@ public sealed class WorkerSettings
   public int BatchSize { get; set; } = 5;
   public int MaxConcurrency { get; set; } = 3;
   public bool Enabled { get; set; } = true;
+}
+
+public sealed class TitleGenerationSettings
+{
+  public const string SectionName = "TitleGeneration";
+  public bool Enabled { get; set; } = true;
+  public int PollingIntervalSeconds { get; set; } = 5;
+  public int BatchSize { get; set; } = 10;
+  public string? DeploymentName { get; set; }
+  public int MaxTitleLength { get; set; } = 50;
 }

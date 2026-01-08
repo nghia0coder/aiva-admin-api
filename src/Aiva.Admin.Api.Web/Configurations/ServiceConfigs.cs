@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication;
 
 namespace Aiva.Admin.Api.Web.Configurations;
 
+using Infrastructure.Configuration;
+using Web.Services.Realtime;
 using Core.Interfaces;
 using Infrastructure;
 using Infrastructure.Email;
@@ -11,9 +13,9 @@ using Microsoft.Extensions.Logging;
 
 public static class ServiceConfigs
 {
-  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, ILogger logger, WebApplicationBuilder builder)
+  public static IServiceCollection AddServiceConfigs(this IServiceCollection services, ILogger logger, WebApplicationBuilder builder, AppSettings appSettings)
   {
-    services.AddInfrastructureServices(builder.Configuration, logger)
+    services.AddInfrastructureServices(appSettings, builder.Configuration, logger)
             .AddMediatorSourceGen(logger)
             .AddCorsConfig(builder.Configuration, builder.Environment, logger);
 
@@ -25,6 +27,7 @@ public static class ServiceConfigs
     services.AddMemoryCache();
     services.AddScoped<ICurrentUserService, CurrentUserService>();
     services.AddScoped<IClaimsTransformation, UserClaimsTransformation>();
+    services.AddScoped<IRealtimeNotificationService, SignalRNotificationService>();
 
     if (builder.Environment.IsDevelopment())
     {

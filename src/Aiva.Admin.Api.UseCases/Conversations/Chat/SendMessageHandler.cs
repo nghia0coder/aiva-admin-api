@@ -39,6 +39,11 @@ public class SendMessageHandler(
         ChatRole.Assistant,
         completionResult.Value);
 
+    if (conversation.IsReadyForTitleGeneration())
+    {
+      conversation.QueueForTitleGeneration();
+    }
+
     await repository.UpdateAsync(conversation, cancellationToken);
 
     return Result.Success(new ChatMessageDTO(
