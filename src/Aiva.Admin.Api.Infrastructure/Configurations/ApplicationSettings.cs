@@ -13,7 +13,6 @@ public class AppSettings
   public AzureAISettings AzureAI { get; set; } = new();
   public EmbeddingSettings Embedding { get; set; } = new();
   public VectorStoreSettings VectorStore { get; set; } = new();
-  public QdrantSettings Qdrant { get; set; } = new();
   public AzureAISearchSettings AzureAISearch { get; set; } = new();
   public MailserverSettings Mailserver { get; set; } = new();
   public WorkerSettings Worker { get; set; } = new();
@@ -84,15 +83,7 @@ public class EmbeddingSettings
 
 public class VectorStoreSettings
 {
-  public string Provider { get; set; } = "Qdrant";
   public string DefaultCollectionName { get; set; } = "aiva-documents";
-}
-
-public class QdrantSettings
-{
-  public string Endpoint { get; set; } = "http://localhost:6334";
-  public string ApiKey { get; set; } = string.Empty;
-  public bool UseHttps { get; set; }
 }
 
 public class AzureAISearchSettings

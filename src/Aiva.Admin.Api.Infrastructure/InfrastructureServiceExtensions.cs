@@ -1,6 +1,4 @@
-﻿using Qdrant.Client;
-
-namespace Aiva.Admin.Api.Infrastructure;
+﻿namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.Configuration;
 using AzureAI;
@@ -19,7 +17,6 @@ using UseCases.Folders.GetByStorage;
 using UseCases.Storages.List;
 using VectorStore;
 using VectorStore.AzureAISearch;
-using VectorStore.Qdrant;
 
 public static class InfrastructureServiceExtensions
 {
@@ -71,40 +68,10 @@ public static class InfrastructureServiceExtensions
     var vectorStoreConfig = config.GetSection(VectorStoreConfiguration.SectionName)
         .Get<VectorStoreConfiguration>() ?? new VectorStoreConfiguration();
 
-    switch (vectorStoreConfig.Provider.ToLowerInvariant())
-    {
-      case "azureaisearch":
-        services.Configure<AzureAISearchConfiguration>(
-            config.GetSection(AzureAISearchConfiguration.SectionName));
-        services.AddSingleton<IVectorStoreService, AzureAISearchVectorStoreService>();
-        logger.LogInformation("Using Azure AI Search as vector store");
-        break;
-
-      case "qdrant":
-      default:
-        services.Configure<QdrantConfiguration>(
-            config.GetSection(QdrantConfiguration.SectionName));
-
-        // Register Qdrant client
-        services.AddSingleton<QdrantClient>(sp =>
-        {
-          var qdrantConfig = sp.GetRequiredService<IOptions<QdrantConfiguration>>().Value;
-
-          if (!string.IsNullOrEmpty(qdrantConfig.ApiKey))
-          {
-            return new QdrantClient(
-                qdrantConfig.Endpoint,
-                apiKey: qdrantConfig.ApiKey,
-                https: qdrantConfig.UseHttps);
-          }
-
-          return new QdrantClient(qdrantConfig.Endpoint, https: qdrantConfig.UseHttps);
-        });
-
-        services.AddSingleton<IVectorStoreService, QdrantVectorStoreService>();
-        logger.LogInformation("Using Qdrant as vector store");
-        break;
-    }
+    services.Configure<AzureAISearchConfiguration>(
+        config.GetSection(AzureAISearchConfiguration.SectionName));
+    services.AddSingleton<IVectorStoreService, AzureAISearchVectorStoreService>();
+    logger.LogInformation("Using Azure AI Search as vector store");
 
     // Register IVectorStoreSettings interface
     services.Configure<VectorStoreConfiguration>(

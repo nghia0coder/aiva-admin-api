@@ -4,7 +4,7 @@ using Commons.Models;
 
 /// <summary>
 /// Abstract interface for vector database operations
-/// Supports both Qdrant and Azure AI Search implementations
+/// Supports Azure AI Search implementations
 /// </summary>
 public interface IVectorStoreService
 {

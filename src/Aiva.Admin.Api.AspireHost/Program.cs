@@ -35,18 +35,13 @@ var papercut = builder.AddContainer("papercut", "jijiechen/papercut", "latest")
     e.UriScheme = "http";
   });
 
-// Add Qdrant vector database
-var qdrant = builder.AddQdrant("qdrant")
-  .WithLifetime(ContainerLifetime.Persistent)
-  .WithDataVolume("qdrant-data");
 
 var webApi = builder.AddProject<Projects.Aiva_Admin_Api_Web>("backend")
   .WithReference(aivaChatbotDb)
   .WithEnvironment("ASPNETCORE_ENVIRONMENT", builder.Environment.EnvironmentName)
   .WithEnvironment("Papercut__Smtp__Url", papercut.GetEndpoint("smtp"))
   .WaitFor(aivaChatbotDb)
-  .WaitFor(papercut)
-  .WaitFor(qdrant);
+  .WaitFor(papercut);
 
 var frontend = builder.AddNpmApp("frontend", @"D:\Aiva\aiva-admin-fe", "start")
     .WithReference(webApi)
@@ -59,8 +54,7 @@ builder.AddProject<Projects.Aiva_Admin_Api_Worker>("worker")
   .WithReference(aivaChatbotDb)
   .WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
   .WaitFor(aivaChatbotDb)
-  .WaitFor(webApi) // Worker waits for Web to ensure DB is migrated
-  .WaitFor(qdrant);
+  .WaitFor(webApi); // Worker waits for Web to ensure DB is migrated
 
 builder
   .Build()
