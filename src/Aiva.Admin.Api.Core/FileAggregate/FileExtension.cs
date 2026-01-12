@@ -9,6 +9,7 @@ public static class AllowedFileExtensions
     {
         ".jpg", ".jpeg", ".png",           // Images
         ".txt",                             // Text
+        ".md",                              // Markdown
         ".doc", ".docx",                    // Word
         ".ppt", ".pptx",                    // PowerPoint
         ".pdf",                             // PDF
@@ -21,6 +22,7 @@ public static class AllowedFileExtensions
         { ".jpeg", "image/jpeg" },
         { ".png", "image/png" },
         { ".txt", "text/plain" },
+        { ".md", "text/markdown" },
         { ".doc", "application/msword" },
         { ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
         { ".ppt", "application/vnd.ms-powerpoint" },

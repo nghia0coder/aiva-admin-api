@@ -83,7 +83,7 @@ public class EmbeddingSettings
 
 public class VectorStoreSettings
 {
-  public string DefaultCollectionName { get; set; } = "aiva-documents";
+  public string DefaultCollectionName { get; set; } = "products-index";
 }
 
 public class AzureAISearchSettings
@@ -91,7 +91,7 @@ public class AzureAISearchSettings
   public string Endpoint { get; set; } = string.Empty;
   public string ApiKey { get; set; } = string.Empty;
   public bool UseManagedIdentity { get; set; }
-  public string SemanticConfigurationName { get; set; } = "default-semantic-config";
+  public string SemanticConfigurationName { get; set; } = "product-semantic-config";
 }
 
 public class MailserverSettings

@@ -6,6 +6,7 @@ using Azure.Storage.Blobs.Models;
 
 namespace Aiva.Admin.Api.Infrastructure.BlobStorage;
 
+using Aiva.Admin.Api.Infrastructure.Configuration;
 using Core.Interfaces;
 
 
@@ -15,13 +16,16 @@ public sealed class BlobStorageService : IBlobStorageService
   private readonly BlobStorageConfiguration _configuration;
   private readonly ILogger<BlobStorageService> _logger;
   private const string FolderMarkerFileName = ".folder";
+  private readonly AppSettings _appSettings;
 
   public BlobStorageService(
       IOptions<BlobStorageConfiguration> options,
-      ILogger<BlobStorageService> logger)
+      ILogger<BlobStorageService> logger,
+      AppSettings appSettings)
   {
     _configuration = options.Value;
     _logger = logger;
+    _appSettings = appSettings;
     _blobServiceClient = CreateBlobServiceClient();
   }
 
@@ -30,21 +34,16 @@ public sealed class BlobStorageService : IBlobStorageService
     if (_configuration.UseAzureIdentity && !string.IsNullOrEmpty(_configuration.ServiceUri))
     {
       return new BlobServiceClient(
-          new Uri(_configuration.ServiceUri),
+          new Uri(_appSettings.AzureBlobStorage.ServiceUri),
           new DefaultAzureCredential());
     }
 
-    if (!string.IsNullOrEmpty(_configuration.ConnectionString))
-    {
-      return new BlobServiceClient(_configuration.ConnectionString);
-    }
-
-    if (!string.IsNullOrEmpty(_configuration.AccountName) &&
-        !string.IsNullOrEmpty(_configuration.AccountKey))
+    if (!string.IsNullOrEmpty(_appSettings.AzureBlobStorage.AccountName) &&
+        !string.IsNullOrEmpty(_appSettings.AzureBlobStorage.AccountKey))
     {
       var connectionString = $"DefaultEndpointsProtocol=https;" +
-          $"AccountName={_configuration.AccountName};" +
-          $"AccountKey={_configuration.AccountKey};" +
+          $"AccountName={_appSettings.AzureBlobStorage.AccountName};" +
+          $"AccountKey={_appSettings.AzureBlobStorage.AccountKey};" +
           $"EndpointSuffix=core.windows.net";
       return new BlobServiceClient(connectionString);
     }

@@ -1,16 +1,17 @@
 ﻿using Ardalis.Result;
 using Azure;
 using Azure.Identity;
+using Azure.Search.Documents;
+using Azure.Search.Documents.Indexes;
 using Azure.Search.Documents.Indexes.Models;
+using Azure.Search.Documents.Models;
 
 namespace Aiva.Admin.Api.Infrastructure.VectorStore.AzureAISearch;
 
-using Aiva.Admin.Api.Infrastructure.Data.Config;
-using Azure.Search.Documents;
-using Azure.Search.Documents.Indexes;
-using Azure.Search.Documents.Models;
+using Configuration;
 using Core.Commons.Models;
 using Core.Interfaces;
+using Data.Config;
 
 /// <summary>
 /// Azure AI Search implementation of vector store service
@@ -21,28 +22,31 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
   private readonly AzureAISearchConfiguration _configuration;
   private readonly ILogger<AzureAISearchVectorStoreService> _logger;
   private readonly Dictionary<string, SearchClient> _searchClients = new();
+  private readonly AppSettings _appSettings;
 
   public AzureAISearchVectorStoreService(
       IOptions<AzureAISearchConfiguration> options,
-      ILogger<AzureAISearchVectorStoreService> logger)
+      ILogger<AzureAISearchVectorStoreService> logger,
+      AppSettings appSettings)
   {
     _configuration = options.Value;
     _logger = logger;
+    _appSettings = appSettings;
     _indexClient = CreateIndexClient();
   }
 
   private SearchIndexClient CreateIndexClient()
   {
-    var endpoint = new Uri(_configuration.Endpoint);
+    var endpoint = new Uri(_appSettings.AzureAISearch.Endpoint);
 
     if (_configuration.UseManagedIdentity)
     {
       return new SearchIndexClient(endpoint, new DefaultAzureCredential());
     }
 
-    if (!string.IsNullOrEmpty(_configuration.ApiKey))
+    if (!string.IsNullOrEmpty(_appSettings.AzureAISearch.ApiKey))
     {
-      return new SearchIndexClient(endpoint, new AzureKeyCredential(_configuration.ApiKey));
+      return new SearchIndexClient(endpoint, new AzureKeyCredential(_appSettings.AzureAISearch.ApiKey));
     }
 
     throw new InvalidOperationException(
@@ -54,11 +58,11 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
   {
     if (!_searchClients.TryGetValue(indexName, out var client))
     {
-      var endpoint = new Uri(_configuration.Endpoint);
+      var endpoint = new Uri(_appSettings.AzureAISearch.Endpoint);
 
-      client = _configuration.UseManagedIdentity
+      client = _appSettings.AzureAISearch.UseManagedIdentity
           ? new SearchClient(endpoint, indexName, new DefaultAzureCredential())
-          : new SearchClient(endpoint, indexName, new AzureKeyCredential(_configuration.ApiKey!));
+          : new SearchClient(endpoint, indexName, new AzureKeyCredential(_appSettings.AzureAISearch.ApiKey!));
 
       _searchClients[indexName] = client;
     }
@@ -102,7 +106,40 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
           new SimpleField("characterOffset", SearchFieldDataType.Int32),
           new SearchableField("contentType") { IsFilterable = true },
           new SimpleField("lastModified", SearchFieldDataType.DateTimeOffset) { IsFilterable = true, IsSortable = true },
-          new VectorSearchField("embedding", vectorDimension, "vector-profile")
+          new VectorSearchField("embedding", vectorDimension, "vector-profile"),
+          new SearchableField("productId")
+          {
+              IsFilterable = true,
+              AnalyzerName = LexicalAnalyzerName.Keyword
+          },
+          new SearchableField("productName")
+          {
+              AnalyzerName = LexicalAnalyzerName.EnMicrosoft  // semantic search
+          },
+          new SearchableField("category")
+          {
+              IsFilterable = true,
+              IsFacetable = true,
+              AnalyzerName = LexicalAnalyzerName.Keyword  // exact match
+          },
+          new SearchableField("brand")
+          {
+              IsFilterable = true,
+              IsFacetable = true,
+              AnalyzerName = LexicalAnalyzerName.Keyword  // exact match
+          },
+          new SimpleField("price", SearchFieldDataType.Double)
+          {
+              IsFilterable = true,
+              IsSortable = true,
+              IsFacetable = true,
+          },
+          new SearchableField("tags")
+          {
+              IsFilterable = true,
+              IsFacetable = true
+              // Removed IsRetrievable = true, as SearchableField does not have this property
+          }
         ],
         VectorSearch = new VectorSearch
         {
@@ -128,12 +165,13 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
         {
           Configurations =
           {
-            new SemanticConfiguration(_configuration.SemanticConfigurationName,
-                new SemanticPrioritizedFields
-                {
-                  ContentFields = { new SemanticField("content") },
-                  TitleField = new SemanticField("fileName")
-                })
+              new SemanticConfiguration(_configuration.SemanticConfigurationName,
+                  new SemanticPrioritizedFields
+                  {
+                      ContentFields = { new SemanticField("content"), new SemanticField("productName") },
+                      TitleField = new SemanticField("productName"),
+                      KeywordsFields = { new SemanticField("category"), new SemanticField("brand"), new SemanticField("tags") }
+                  })
           }
         }
       };
@@ -183,7 +221,13 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
         ["characterOffset"] = chunk.Metadata.CharacterOffset ?? 0,
         ["contentType"] = chunk.Metadata.ContentType ?? "",
         ["lastModified"] = chunk.Metadata.LastModified,
-        ["embedding"] = chunk.Embedding.ToArray()
+        ["embedding"] = chunk.Embedding.ToArray(),
+        ["productId"] = chunk.Metadata.ProductId ?? "",
+        ["productName"] = chunk.Metadata.ProductName ?? "",
+        ["category"] = chunk.Metadata.Category ?? "",
+        ["brand"] = chunk.Metadata.Brand ?? "",
+        ["price"] = chunk.Metadata.Price ?? (double?)null,
+        ["tags"] = chunk.Metadata.Tags?.ToArray() ?? Array.Empty<string>()
       }).ToList();
 
       // Batch upload (Azure AI Search supports up to 1000 documents per batch)

@@ -12,5 +12,5 @@ public sealed class VectorStoreConfiguration : IVectorStoreSettings
   /// <summary>
   /// Default collection/index name
   /// </summary>
-  public string DefaultCollectionName { get; set; } = "aiva-documents";
+  public string DefaultCollectionName { get; set; } = "products-index";
 }

@@ -7,6 +7,7 @@ using OpenAI.Embeddings;
 
 namespace Aiva.Admin.Api.Infrastructure.Embedding;
 
+using Aiva.Admin.Api.Infrastructure.Configuration;
 using Core.Interfaces;
 
 /// <summary>
@@ -17,34 +18,38 @@ public sealed class AzureOpenAIEmbeddingService : IEmbeddingService
   private readonly EmbeddingClient _embeddingClient;
   private readonly EmbeddingConfiguration _configuration;
   private readonly ILogger<AzureOpenAIEmbeddingService> _logger;
+  private readonly AppSettings _appSettings;
 
   public AzureOpenAIEmbeddingService(
       IOptions<EmbeddingConfiguration> options,
-      ILogger<AzureOpenAIEmbeddingService> logger)
+      ILogger<AzureOpenAIEmbeddingService> logger,
+      AppSettings appSettings)
   {
     _configuration = options.Value;
     _logger = logger;
+    _appSettings = appSettings;
     _embeddingClient = CreateEmbeddingClient();
   }
 
-  public int EmbeddingDimension => _configuration.Dimension;
-  public string ModelName => _configuration.DeploymentName;
+  public int EmbeddingDimension => _appSettings.Embedding.Dimension;
+  public string ModelName => _appSettings.Embedding.DeploymentName;
 
   private EmbeddingClient CreateEmbeddingClient()
   {
     AzureOpenAIClient azureClient;
 
-    if (_configuration.UseManagedIdentity)
+    if (_appSettings.Embedding.UseManagedIdentity)
     {
       azureClient = new AzureOpenAIClient(
-          new Uri(_configuration.Endpoint),
+          new Uri(_appSettings.Embedding.Endpoint),
           new DefaultAzureCredential());
     }
-    else if (!string.IsNullOrEmpty(_configuration.ApiKey))
+    else if (!string.IsNullOrEmpty(_appSettings.Embedding.ApiKey))
     {
+
       azureClient = new AzureOpenAIClient(
-          new Uri(_configuration.Endpoint),
-          new AzureKeyCredential(_configuration.ApiKey));
+          new Uri(_appSettings.AzureAI.Endpoint),
+          new AzureKeyCredential(_appSettings.AzureAI.ApiKey));
     }
     else
     {
@@ -105,13 +110,13 @@ public sealed class AzureOpenAIEmbeddingService : IEmbeddingService
       var results = new List<ReadOnlyMemory<float>>(texts.Count);
 
       // Process in batches
-      for (var i = 0; i < texts.Count; i += _configuration.MaxBatchSize)
+      for (var i = 0; i < texts.Count; i += _appSettings.Embedding.MaxBatchSize)
       {
         cancellationToken.ThrowIfCancellationRequested();
 
         var batch = texts
             .Skip(i)
-            .Take(_configuration.MaxBatchSize)
+            .Take(_appSettings.Embedding.MaxBatchSize)
             .ToList();
 
         var response = await _embeddingClient.GenerateEmbeddingsAsync(
@@ -125,7 +130,7 @@ public sealed class AzureOpenAIEmbeddingService : IEmbeddingService
 
         _logger.LogDebug(
             "Generated {Count} embeddings in batch {BatchIndex}",
-            batch.Count, i / _configuration.MaxBatchSize + 1);
+            batch.Count, i / _appSettings.Embedding.MaxBatchSize + 1);
       }
 
       return Result.Success<IReadOnlyList<ReadOnlyMemory<float>>>(results);

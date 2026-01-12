@@ -82,6 +82,36 @@ public sealed record DocumentChunkMetadata
   public string? ContentType { get; init; }
 
   /// <summary>
+  /// Product ID/SKU
+  /// </summary>
+  public string? ProductId { get; init; }
+
+  /// <summary>
+  /// Product name
+  /// </summary>
+  public string? ProductName { get; init; }
+
+  /// <summary>
+  /// Product category
+  /// </summary>
+  public string? Category { get; init; }
+
+  /// <summary>
+  /// Product brand
+  /// </summary>
+  public string? Brand { get; init; }
+
+  /// <summary>
+  /// Product price
+  /// </summary>
+  public double? Price { get; init; }
+
+  /// <summary>
+  /// Product tags
+  /// </summary>
+  public IReadOnlyList<string>? Tags { get; init; }
+
+  /// <summary>
   /// When the document was last modified
   /// </summary>
   public DateTime? LastModified { get; init; }
