@@ -1,5 +1,7 @@
 ﻿namespace Aiva.Admin.Api.UseCases.Conversations.Chat;
 
+using System.Threading;
+using Aiva.Admin.Api.Core.SystemPromptAggregate;
 using Core.Commons.Models;
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
@@ -8,6 +10,7 @@ using Core.Interfaces;
 public class SendMessageHandler(
     IRepository<Conversation> repository,
     IChatCompletionService chatService,
+    ISystemPromptService systemPromptService,
     IRetrievalService retrievalService)
     : ICommandHandler<SendMessageCommand, Result<ChatMessageDTO>>
 {
@@ -37,9 +40,10 @@ public class SendMessageHandler(
             },
             cancellationToken);
 
-    var messagesWithContext = BuildAugmentedMessages(
-            conversation.Messages,
-            retrievalResult.IsSuccess ? retrievalResult.Value.FormattedContext : null, conversation.Id);
+    var messagesWithContext = await BuildAugmentedMessagesAsync(
+            conversation,
+            retrievalResult.IsSuccess ? retrievalResult.Value.FormattedContext : null,
+            cancellationToken);
 
     // Get AI response
     var completionResult = await chatService.GetCompletionAsync(
@@ -70,25 +74,43 @@ public class SendMessageHandler(
         assistantMessage.CreatedAt));
   }
 
-  private IReadOnlyList<ChatMessage> BuildAugmentedMessages(
-        IReadOnlyList<ChatMessage> messages,
-        string? context, ConversationId conversationId)
+  private async Task<IReadOnlyList<ChatMessage>> BuildAugmentedMessagesAsync(
+        Conversation conversation,
+        string? context,
+        CancellationToken cancellationToken)
   {
-    if (string.IsNullOrEmpty(context))
-      return messages;
+    var messages = conversation.Messages.ToList();
 
-    var augmented = messages.ToList();
-
-    // Inject context before the last user message
-    var lastUserIndex = augmented.FindLastIndex(m => m.Role == ChatRole.User);
-    if (lastUserIndex >= 0)
+    // If conversation doesn't have a system prompt, get default from database
+    if (!messages.Any(m => m.Role == ChatRole.System))
     {
-      var originalContent = augmented[lastUserIndex].Content;
-      augmented[lastUserIndex] = new ChatMessage(
-          ChatRole.User,
-          $"{context}\n\nQuestion: {originalContent}", conversationId);
+      var promptResult = await systemPromptService.GetActivePromptContentAsync(
+          SystemPromptKey.From("default"),
+          cancellationToken);
+
+      if (promptResult.IsSuccess)
+      {
+        messages.Insert(0, new ChatMessage(
+            ChatRole.System,
+            promptResult.Value,
+            conversation.Id));
+      }
     }
 
-    return augmented;
+    // Inject RAG context before the last user message
+    if (!string.IsNullOrEmpty(context))
+    {
+      var lastUserIndex = messages.FindLastIndex(m => m.Role == ChatRole.User);
+      if (lastUserIndex >= 0)
+      {
+        var originalContent = messages[lastUserIndex].Content;
+        messages[lastUserIndex] = new ChatMessage(
+            ChatRole.User,
+            $"{context}\n\nQuestion: {originalContent}",
+            conversation.Id);
+      }
+    }
+
+    return messages;
   }
 }

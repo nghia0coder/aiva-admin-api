@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
+using Aiva.Admin.Api.Infrastructure.SystemPrompts;
 using AzureAI;
 using BlobStorage;
 using Configuration;
@@ -10,6 +11,7 @@ using Data.Config;
 using Data.Queries;
 using Data.Seeding;
 using Embedding;
+using Microsoft.Extensions.Caching.Memory;
 using Retrieval;
 using TextExtraction;
 using TextExtraction.Extractors;
@@ -56,6 +58,9 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    services.AddSingleton<IMemoryCache, MemoryCache>();
+    services.AddScoped<ISystemPromptService, SystemPromptService>();
 
     // Register Retrieval Service
     services.AddScoped<IRetrievalService, RetrievalService>();

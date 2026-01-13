@@ -1,4 +1,5 @@
 ﻿using Aiva.Admin.Api.Core.ContributorAggregate;
+using Aiva.Admin.Api.Core.SystemPromptAggregate;
 
 namespace Aiva.Admin.Api.Infrastructure.Data;
 
@@ -13,6 +14,7 @@ public static class SeedData
     if (await dbContext.Contributors.AnyAsync()) return; // DB has been seeded
 
     await PopulateTestDataAsync(dbContext);
+    await SeedSystemPromptsAsync(dbContext);
   }
 
   public static async Task PopulateTestDataAsync(AppDbContext dbContext)
@@ -21,10 +23,38 @@ public static class SeedData
     await dbContext.SaveChangesAsync();
 
     // add a bunch more contributors to support demonstrating paging
-    for (int i = 1; i <= NUMBER_OF_CONTRIBUTORS-2; i++)
+    for (int i = 1; i <= NUMBER_OF_CONTRIBUTORS - 2; i++)
     {
       dbContext.Contributors.Add(new Contributor(ContributorName.From($"Contributor {i}")));
     }
     await dbContext.SaveChangesAsync();
+  }
+
+  public static async Task SeedSystemPromptsAsync(AppDbContext context)
+  {
+    if (await context.Set<SystemPrompt>().AnyAsync())
+      return; // Already seeded
+
+    var defaultPrompt = SystemPrompt.Create(
+        SystemPromptKey.From("default"),
+        "Default System Prompt",
+        "You are a helpful AI assistant for the Aiva Admin system. Provide clear, accurate, and professional responses.",
+        description: "Default system prompt for general conversations");
+    defaultPrompt.Activate();
+
+    var customerSupportPrompt = SystemPrompt.Create(
+        SystemPromptKey.From("customer-support"),
+        "Customer Support Assistant",
+        @"You are a customer support AI assistant for an e-commerce platform. Your role is to:
+        - Help customers track their orders
+        - Answer product questions
+        - Assist with returns and refunds
+        - Provide shipping information
+        Be friendly, professional, and always prioritize customer satisfaction.",
+        description: "System prompt for customer-facing chatbot");
+    customerSupportPrompt.Activate();
+
+    context.AddRange(defaultPrompt, customerSupportPrompt);
+    await context.SaveChangesAsync();
   }
 }

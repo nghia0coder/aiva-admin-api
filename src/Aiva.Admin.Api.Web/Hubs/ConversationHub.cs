@@ -15,7 +15,7 @@ public class ConversationHub : Hub
 
   public override async Task OnConnectedAsync()
   {
-    var userId = Context.User?.FindFirst("oid")?.Value
+    var userId = Context.User?.FindFirst("internal_user_id")?.Value
                  ?? Context.User?.FindFirst("sub")?.Value;
 
     if (!string.IsNullOrEmpty(userId))
