@@ -25,5 +25,5 @@ public sealed class AzureAISearchConfiguration
   /// <summary>
   /// Semantic configuration name for hybrid search
   /// </summary>
-  public string SemanticConfigurationName { get; set; } = "default-semantic-config";
+  public string SemanticConfigurationName { get; set; } = "product-semantic-config";
 }

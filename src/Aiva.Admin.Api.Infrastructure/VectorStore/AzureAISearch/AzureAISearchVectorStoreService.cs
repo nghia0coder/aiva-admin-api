@@ -35,6 +35,67 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
     _indexClient = CreateIndexClient();
   }
 
+  public async Task<Result<IReadOnlyList<VectorSearchResult>>> HybridSearchAsync(
+    string collectionName,
+    string textQuery,
+    ReadOnlyMemory<float> queryVector,
+    HybridSearchOptions options,
+    CancellationToken cancellationToken = default)
+  {
+    var indexName = NormalizeIndexName(collectionName);
+    var searchClient = GetSearchClient(indexName);
+
+    // 1. Configure Vector Query
+    var vectorQuery = new VectorizedQuery(queryVector.ToArray())
+    {
+      KNearestNeighborsCount = options.TopK,
+      Fields = { "embedding" }
+    };
+
+    // 2. Build Search Options with Hybrid capabilities
+    var searchOptions = new SearchOptions
+    {
+      // Vector Search component
+      VectorSearch = new Azure.Search.Documents.Models.VectorSearchOptions
+      {
+        Queries = { vectorQuery }
+      },
+      Size = options.TopK,
+      Select = { "id", "documentId", "content", "fileName", "pageNumber",
+                   "sectionTitle", "storageId", "folderId", "totalChunks",
+                   "characterOffset", "contentType", "productId", "productName",
+                   "category", "brand", "price", "tags" }
+    };
+
+    // 3. Enable Semantic Ranking (if requested)
+    if (options.UseSemanticRanking)
+    {
+      searchOptions.QueryType = SearchQueryType.Semantic;
+      searchOptions.SemanticSearch = new SemanticSearchOptions
+      {
+        SemanticConfigurationName = _configuration.SemanticConfigurationName,
+        QueryCaption = new QueryCaption(QueryCaptionType.Extractive),
+        QueryAnswer = new QueryAnswer(QueryAnswerType.Extractive)
+      };
+    }
+
+    // 4. Build filters (same pattern as existing SearchAsync)
+    var filterParts = BuildFilterParts(options);
+    if (filterParts.Count > 0)
+    {
+      searchOptions.Filter = string.Join(" and ", filterParts);
+    }
+
+    // 5. Execute HYBRID search (text + vector + semantic)
+    var response = await searchClient.SearchAsync<SearchDocument>(
+        textQuery,    // ← This enables full-text search component
+        searchOptions,
+        cancellationToken);
+
+    // 6. Process results (with semantic captions if available)
+    return await ProcessSearchResults(response, options.MinScore);
+  }
+
   private SearchIndexClient CreateIndexClient()
   {
     var endpoint = new Uri(_appSettings.AzureAISearch.Endpoint);
@@ -448,5 +509,127 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
     return name.ToLowerInvariant()
         .Replace("_", "-")
         .Replace(".", "-");
+  }
+
+  /// <summary>
+  /// Builds filter conditions for search queries
+  /// </summary>
+  private List<string> BuildFilterParts(HybridSearchOptions options)
+  {
+    var filterParts = new List<string>();
+
+    if (options.DocumentIds?.Count > 0)
+    {
+      var docFilter = string.Join(" or ",
+          options.DocumentIds.Select(id => $"documentId eq '{id}'"));
+      filterParts.Add($"({docFilter})");
+    }
+
+    if (options.StorageId.HasValue)
+    {
+      filterParts.Add($"storageId eq '{options.StorageId.Value}'");
+    }
+
+    if (options.FolderId.HasValue)
+    {
+      filterParts.Add($"folderId eq '{options.FolderId.Value}'");
+    }
+
+    // Product-specific filters
+    if (!string.IsNullOrEmpty(options.Category))
+    {
+      filterParts.Add($"category eq '{options.Category}'");
+    }
+
+    if (!string.IsNullOrEmpty(options.Brand))
+    {
+      filterParts.Add($"brand eq '{options.Brand}'");
+    }
+
+    if (options.MinPrice.HasValue)
+    {
+      filterParts.Add($"price ge {options.MinPrice.Value}");
+    }
+
+    if (options.MaxPrice.HasValue)
+    {
+      filterParts.Add($"price le {options.MaxPrice.Value}");
+    }
+
+    return filterParts;
+  }
+
+  /// <summary>
+  /// Processes search results and extracts semantic information
+  /// </summary>
+  private async Task<Result<IReadOnlyList<VectorSearchResult>>> ProcessSearchResults(
+      Response<SearchResults<SearchDocument>> response,
+      double? minScore)
+  {
+    try
+    {
+      var results = new List<VectorSearchResult>();
+      
+      await foreach (var result in response.Value.GetResultsAsync())
+      {
+        // Filter by minimum score if specified
+        if (minScore.HasValue && result.Score < minScore.Value)
+        {
+          continue;
+        }
+
+        var vectorResult = new VectorSearchResult
+        {
+          ChunkId = result.Document["id"]?.ToString() ?? "",
+          DocumentId = result.Document["documentId"]?.ToString() ?? "",
+          Content = result.Document["content"]?.ToString() ?? "",
+          Score = result.Score ?? 0,
+          Metadata = new DocumentChunkMetadata
+          {
+            FileName = result.Document["fileName"]?.ToString(),
+            PageNumber = result.Document["pageNumber"] is int pn ? pn : null,
+            SectionTitle = result.Document["sectionTitle"]?.ToString(),
+            StorageId = int.TryParse(result.Document["storageId"]?.ToString(), out var sid) ? sid : null,
+            FolderId = int.TryParse(result.Document["folderId"]?.ToString(), out var fid) ? fid : null,
+            TotalChunks = result.Document["totalChunks"] is int tc ? tc : null,
+            CharacterOffset = result.Document["characterOffset"] is int co ? co : null,
+            ContentType = result.Document["contentType"]?.ToString(),
+            // Product-specific metadata
+            ProductId = result.Document["productId"]?.ToString(),
+            ProductName = result.Document["productName"]?.ToString(),
+            Category = result.Document["category"]?.ToString(),
+            Brand = result.Document["brand"]?.ToString(),
+            Price = result.Document["price"] is double price ? price : null,
+            Tags = result.Document["tags"] is string[] tags ? tags.ToList() : null
+          }
+        };
+
+        // Add semantic captions and answers if available (for semantic search)
+        if (result.SemanticSearch?.Captions?.Count > 0)
+        {
+          var caption = result.SemanticSearch.Captions.First();
+          vectorResult.SemanticCaption = caption.Text;
+          vectorResult.SemanticCaptionHighlights = caption.Highlights;
+        }
+
+        if (response.Value.SemanticSearch?.Answers?.Count > 0)
+        {
+          var answer = response.Value.SemanticSearch.Answers.First();
+          vectorResult.SemanticAnswer = answer.Text;
+          vectorResult.SemanticAnswerScore = answer.Score;
+        }
+
+        results.Add(vectorResult);
+      }
+
+      _logger.LogDebug("Processed {Count} search results with semantic information", results.Count);
+      
+      return Result.Success<IReadOnlyList<VectorSearchResult>>(results);
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, "Failed to process search results");
+      return Result.Error($"Failed to process search results: {ex.Message}");
+    }
   }
 }

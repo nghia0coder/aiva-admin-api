@@ -1,7 +1,8 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure;
 
-using Aiva.Admin.Api.Infrastructure.Configuration;
 using AzureAI;
+using BlobStorage;
+using Configuration;
 using Core.Interfaces;
 using Core.Services;
 using Data;
@@ -9,7 +10,7 @@ using Data.Config;
 using Data.Queries;
 using Data.Seeding;
 using Embedding;
-using Infrastructure.BlobStorage;
+using Retrieval;
 using TextExtraction;
 using TextExtraction.Extractors;
 using UseCases.Contributors.List;
@@ -55,6 +56,9 @@ public static class InfrastructureServiceExtensions
 
       options.AddInterceptors(eventDispatchInterceptor);
     });
+
+    // Register Retrieval Service
+    services.AddScoped<IRetrievalService, RetrievalService>();
 
     // Configure Embedding Service
     services.Configure<EmbeddingConfiguration>(

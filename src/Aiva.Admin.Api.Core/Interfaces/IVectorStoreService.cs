@@ -9,6 +9,17 @@ using Commons.Models;
 public interface IVectorStoreService
 {
   /// <summary>
+  /// Performs hybrid search combining vector similarity and full-text search
+  /// with optional semantic re-ranking
+  /// </summary>
+  Task<Result<IReadOnlyList<VectorSearchResult>>> HybridSearchAsync(
+      string collectionName,
+      string textQuery,                           // For keyword search
+      ReadOnlyMemory<float> queryVector,          // For vector search
+      HybridSearchOptions options,
+      CancellationToken cancellationToken = default);
+
+  /// <summary>
   /// Ensures the vector collection/index exists
   /// </summary>
   Task<Result> EnsureCollectionExistsAsync(

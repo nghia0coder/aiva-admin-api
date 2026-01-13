@@ -29,4 +29,24 @@ public sealed record VectorSearchResult
   /// Associated metadata
   /// </summary>
   public DocumentChunkMetadata? Metadata { get; init; }
+
+  /// <summary>
+  /// Semantic caption from Azure AI Search (if semantic ranking was used)
+  /// </summary>
+  public string? SemanticCaption { get; set; }
+
+  /// <summary>
+  /// Highlighted portions of the semantic caption
+  /// </summary>
+  public string? SemanticCaptionHighlights { get; set; }
+
+  /// <summary>
+  /// Semantic answer from Azure AI Search (if available)
+  /// </summary>
+  public string? SemanticAnswer { get; set; }
+
+  /// <summary>
+  /// Score for the semantic answer
+  /// </summary>
+  public double? SemanticAnswerScore { get; set; }
 }
