@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Worker.Services;
+﻿namespace Aiva.Admin.Api.Worker.Services.Backgrounds;
 
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;

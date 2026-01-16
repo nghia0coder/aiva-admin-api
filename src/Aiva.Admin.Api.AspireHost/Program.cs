@@ -52,6 +52,7 @@ var frontend = builder.AddNpmApp("frontend", @"D:\Aiva\aiva-admin-fe", "start")
 // Add the worker project for background processing
 builder.AddProject<Projects.Aiva_Admin_Api_Worker>("worker")
   .WithReference(aivaChatbotDb)
+  .WithReference(webApi)
   .WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
   .WaitFor(aivaChatbotDb)
   .WaitFor(webApi); // Worker waits for Web to ensure DB is migrated

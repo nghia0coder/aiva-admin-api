@@ -3,13 +3,17 @@ using Ardalis.SharedKernel;
 
 namespace Aiva.Admin.Api.Web.Conversations.Stream;
 
+using Core.Commons.Models;
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
+using Core.SystemPromptAggregate;
 
 public class StreamChat(
     IRepository<Conversation> repository,
-    IChatCompletionService chatService)
+    IChatCompletionService chatService,
+    ISystemPromptService systemPromptService,
+    IRetrievalService retrievalService)
     : Endpoint<StreamChatRequest>
 {
   public override void Configure()
@@ -41,9 +45,25 @@ public class StreamChat(
     // Add user message
     conversation.AddMessage(ChatRole.User, request.Message);
 
+    // *** RAG: Retrieve relevant context ***
+    var retrievalResult = await retrievalService.RetrieveContextAsync(
+        request.Message,
+        new RetrievalOptions
+        {
+          TopK = 5,
+          MinScore = 0.7,
+          Strategy = SearchStrategy.Hybrid  // Use hybrid for e-commerce
+        },
+        ct);
+
+    var messagesWithContext = await BuildAugmentedMessagesAsync(
+        conversation,
+        retrievalResult.IsSuccess ? retrievalResult.Value.FormattedContext : null,
+        ct);
+
     var fullResponse = new System.Text.StringBuilder();
 
-    await foreach (var chunkResult in chatService.StreamCompletionAsync(conversation.Messages, ct))
+    await foreach (var chunkResult in chatService.StreamCompletionAsync(messagesWithContext, ct))
     {
       if (chunkResult.IsSuccess)
       {
@@ -59,9 +79,56 @@ public class StreamChat(
 
     // Save assistant message after streaming completes
     conversation.AddMessage(ChatRole.Assistant, fullResponse.ToString());
+
+    // Check if conversation is ready for title generation (migrated from SendMessageHandler)
+    if (conversation.IsReadyForTitleGeneration())
+    {
+      conversation.QueueForTitleGeneration();
+    }
+
     await repository.UpdateAsync(conversation, ct);
 
     await SendEventAsync("done", new { complete = true }, ct);
+  }
+
+  private async Task<IReadOnlyList<ChatMessage>> BuildAugmentedMessagesAsync(
+      Conversation conversation,
+      string? context,
+      CancellationToken cancellationToken)
+  {
+    var messages = conversation.Messages.ToList();
+
+    // If conversation doesn't have a system prompt, get default from database
+    if (!messages.Any(m => m.Role == ChatRole.System))
+    {
+      var promptResult = await systemPromptService.GetActivePromptContentAsync(
+          SystemPromptKey.From("default"),
+          cancellationToken);
+
+      if (promptResult.IsSuccess)
+      {
+        messages.Insert(0, new ChatMessage(
+            ChatRole.System,
+            promptResult.Value,
+            conversation.Id));
+      }
+    }
+
+    // Inject RAG context before the last user message
+    if (!string.IsNullOrEmpty(context))
+    {
+      var lastUserIndex = messages.FindLastIndex(m => m.Role == ChatRole.User);
+      if (lastUserIndex >= 0)
+      {
+        var originalContent = messages[lastUserIndex].Content;
+        messages[lastUserIndex] = new ChatMessage(
+            ChatRole.User,
+            $"{context}\n\nQuestion: {originalContent}",
+            conversation.Id);
+      }
+    }
+
+    return messages;
   }
 
   private async Task SendEventAsync<T>(string eventType, T data, CancellationToken ct)

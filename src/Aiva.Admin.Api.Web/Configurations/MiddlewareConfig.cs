@@ -1,6 +1,6 @@
-﻿using Ardalis.ListStartupServices;
+﻿using Aiva.Admin.Api.Web.Hubs;
+using Ardalis.ListStartupServices;
 using Scalar.AspNetCore;
-using Aiva.Admin.Api.Web.Hubs;
 
 namespace Aiva.Admin.Api.Web.Configurations;
 
@@ -23,9 +23,9 @@ public static class MiddlewareConfig
       app.UseHsts();
     }
 
+    app.UseCors(CorsConfigs.DefaultPolicyName);
     app.UseAuthentication();
     app.UseAuthorization();
-    app.UseCors(CorsConfigs.DefaultPolicyName);
     app.MapHub<ConversationHub>("/hubs/conversation");
     app.UseFastEndpoints();
 

@@ -1,12 +1,11 @@
-﻿namespace Aiva.Admin.Api.Web.Services.Realtime;
+﻿using Microsoft.AspNetCore.SignalR;
 
-using Aiva.Admin.Api.Web.Hubs;
+namespace Aiva.Admin.Api.Web.Services.Realtime;
 
 using Core.ConversationAggregate;
 using Core.Interfaces;
 using Core.UserAggregate;
-using Microsoft.AspNetCore.SignalR;
-
+using Hubs;
 
 public class SignalRNotificationService : IRealtimeNotificationService
 {

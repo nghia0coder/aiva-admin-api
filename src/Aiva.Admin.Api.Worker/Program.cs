@@ -1,7 +1,10 @@
-﻿using Aiva.Admin.Api.Infrastructure;
+﻿using Aiva.Admin.Api.Core.ContributorAggregate;
+using Aiva.Admin.Api.Core.Interfaces;
+using Aiva.Admin.Api.Infrastructure;
 using Aiva.Admin.Api.Infrastructure.Configuration;
 using Aiva.Admin.Api.UseCases.Files.ProcessFile;
 using Aiva.Admin.Api.Worker.Services;
+using Aiva.Admin.Api.Worker.Services.Backgrounds;
 using Serilog;
 using Serilog.Extensions.Logging;
 
@@ -37,6 +40,15 @@ builder.Services.AddSingleton(appSettings);
 
 builder.Services.AddInfrastructureServices(appSettings, builder.Configuration, startupLogger);
 
+builder.Services.AddScoped<IEmailSender, NoOpEmailSender>();
+
+builder.Services.AddHttpClient<IRealtimeNotificationService, HttpRealtimeNotificationService>(client =>
+{
+  // 'backend' matches the name defined in AspireHost
+  client.BaseAddress = new Uri("https://backend");
+});
+
+
 builder.Services.AddMediator(options =>
 {
   options.ServiceLifetime = ServiceLifetime.Scoped;
@@ -44,6 +56,7 @@ builder.Services.AddMediator(options =>
   [
     typeof(ProcessFileCommand),                // UseCases
     typeof(InfrastructureServiceExtensions),   // Infrastructure
+    typeof(Contributor),                       // Core
     typeof(Program)                            // Worker
   ];
 });
