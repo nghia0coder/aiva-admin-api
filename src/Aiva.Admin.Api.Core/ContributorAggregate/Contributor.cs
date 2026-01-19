@@ -14,7 +14,7 @@ public class Contributor(ContributorName name) : EntityBase<Contributor, Contrib
     return this;
   }
 
-  public Contributor UpdateName(ContributorName newName)
+  public Contributor UpdateName(  ContributorName newName)
   {
     if (Name == newName) return this;
     Name = newName;

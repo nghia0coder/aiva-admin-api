@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Web.Conversations.Get;
+namespace Aiva.Admin.Api.Web.Conversations.Get;
 
 public record GetConversationHistoryResponse(
     Guid Id,
@@ -6,7 +6,8 @@ public record GetConversationHistoryResponse(
     string? SystemPrompt,
     DateTime CreatedAt,
     IReadOnlyList<ChatMessageRecord> Messages,
-    ConversationMetadata Metadata);
+    ConversationMetadata Metadata,
+    PaginationInfo? Pagination = null);
 
 public record ChatMessageRecord(
     Guid Id,
@@ -89,6 +90,25 @@ public enum ConversationStatus
   Active,
   Archived,
   Deleted
+}
+
+// Pagination information for cursor-based pagination
+public record PaginationInfo(
+    bool HasMore,              // More messages exist before oldest returned
+    bool HasNewer,             // More messages exist after newest returned
+    Guid? OldestMessageId,     // Cursor to fetch previous page
+    Guid? NewestMessageId,     // Cursor to fetch next page
+    DateTime? OldestTimestamp, // Alternative timestamp-based cursor
+    DateTime? NewestTimestamp, // Alternative timestamp-based cursor
+    int TotalMessages,         // Total messages in conversation (for UI)
+    int ReturnedCount)         // Messages in this response
+{
+    // FE-friendly computed properties
+    public bool CanLoadMore => HasMore;
+    public bool CanLoadNewer => HasNewer;
+    public double LoadedPercentage => TotalMessages > 0 
+        ? Math.Round((double)ReturnedCount / TotalMessages * 100, 1) 
+        : 100.0;
 }
 
 // Extension method for string formatting

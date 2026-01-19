@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Infrastructure;
+namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.SystemPrompts;
 using AzureAI;
@@ -126,7 +126,8 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IGetFoldersByStorageQueryService, GetFoldersByStorageQueryService>()
            .AddScoped<IListContributorsQueryService, ListContributorsQueryService>()
            .AddScoped<IListStoragesQueryService, ListStoragesQueryService>()
-           .AddScoped<IDeleteContributorService, DeleteContributorService>();
+           .AddScoped<IDeleteContributorService, DeleteContributorService>()
+           .AddScoped<IConversationMessageQueryService, ConversationMessageQueryService>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

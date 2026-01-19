@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.UseCases.Conversations;
+namespace Aiva.Admin.Api.UseCases.Conversations;
 
 public record ConversationDTO(
     Guid Id,
@@ -28,7 +28,8 @@ public record ConversationDetailDTO(
     string? SystemPrompt,
     DateTime CreatedAt,
     IReadOnlyList<ChatMessageDTO> Messages,
-    ConversationMetadataDTO? Metadata = null);
+    ConversationMetadataDTO? Metadata = null,
+    PaginationInfoDTO? Pagination = null);
 
 public record ConversationMetadataDTO(
     int TotalMessages,
@@ -36,3 +37,13 @@ public record ConversationMetadataDTO(
     DateTime LastActiveAt,
     string Status = "active",
     bool IsArchived = false);
+
+public record PaginationInfoDTO(
+    bool HasMore,              // More messages exist before oldest returned
+    bool HasNewer,             // More messages exist after newest returned
+    Guid? OldestMessageId,     // Cursor to fetch previous page
+    Guid? NewestMessageId,     // Cursor to fetch next page
+    DateTime? OldestTimestamp, // Alternative timestamp-based cursor
+    DateTime? NewestTimestamp, // Alternative timestamp-based cursor
+    int TotalMessages,         // Total messages in conversation (for UI)
+    int ReturnedCount);        // Messages in this response

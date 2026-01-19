@@ -1,12 +1,12 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Aiva.Admin.Api.UseCases.Conversations; // Correct full namespace
+using Aiva.Admin.Api.UseCases.Conversations.History;
 
 namespace Aiva.Admin.Api.Web.Conversations.Get;
 
 using Common;
 using Core.ConversationAggregate;
 using Extensions;
-using UseCases.Conversations.History;
 
 public class GetConversationHistory(IMediator mediator)
     : AuthenticatedEndpoint<GetConversationHistoryRequest,
@@ -20,16 +20,23 @@ public class GetConversationHistory(IMediator mediator)
         Get(GetConversationHistoryRequest.Route);
         Summary(s =>
         {
-            s.Summary = "Get conversation details with full message history";
-            s.Description = "Retrieves a specific conversation with all its messages, " +
-                          "including system prompts and chat history, ordered chronologically. " +
-                          "Response includes rich metadata optimized for frontend consumption.";
+            s.Summary = "Get conversation details with paginated message history";
+            s.Description = "Retrieves a specific conversation with paginated messages using cursor-based pagination. " +
+                          "Supports loading latest messages (default), older messages (scroll up), " +
+                          "newer messages (scroll down), and context around a specific message (deep linking). " +
+                          "Response includes rich metadata and pagination info optimized for frontend consumption.";
             s.ExampleRequest = new GetConversationHistoryRequest
             {
-                Id = Guid.Parse("123e4567-e89b-12d3-a456-426614174000")
+                Id = Guid.Parse("123e4567-e89b-12d3-a456-426614174000"),
+                Limit = 50
             };
             s.Params["id"] = "The unique identifier of the conversation";
-            s.Responses[200] = "Conversation details with rich metadata retrieved successfully";
+            s.Params["beforeMessageId"] = "(Optional) Load messages before this message ID (for scrolling up)";
+            s.Params["afterMessageId"] = "(Optional) Load messages after this message ID (for scrolling down)";
+            s.Params["aroundMessageId"] = "(Optional) Load messages around this message ID (for deep linking)";
+            s.Params["limit"] = "(Optional) Number of messages to return (default: 50, max: 200)";
+            s.Responses[200] = "Conversation details with paginated messages retrieved successfully";
+            s.Responses[400] = "Invalid pagination parameters";
             s.Responses[401] = "User not authenticated";
             s.Responses[404] = "Conversation not found or access denied";
         });
@@ -45,7 +52,20 @@ public class GetConversationHistory(IMediator mediator)
         }
 
         var conversationId = ConversationId.From(request.Id);
-        var query = new GetConversationHistoryQuery(conversationId, RequiredUserId);
+        
+        // Create pagination params if any cursor is provided
+        PaginationParams? paginationParams = null;
+        if (request.BeforeMessageId.HasValue || request.AfterMessageId.HasValue || 
+            request.AroundMessageId.HasValue || request.Limit.HasValue)
+        {
+            paginationParams = new PaginationParams(
+                BeforeMessageId: request.BeforeMessageId,
+                AfterMessageId: request.AfterMessageId,
+                AroundMessageId: request.AroundMessageId,
+                Limit: request.Limit ?? 50);
+        }
+        
+        var query = new GetConversationHistoryQuery(conversationId, RequiredUserId, paginationParams);
         
         var result = await mediator.Send(query, ct);
 
@@ -82,13 +102,29 @@ public class GetConversationHistory(IMediator mediator)
                 dto.Messages.Sum(m => m.Metadata?.TokenCount ?? 0),
                 dto.Messages.LastOrDefault()?.CreatedAt ?? dto.CreatedAt);
 
+        // Map pagination info if available
+        PaginationInfo? paginationInfo = null;
+        if (dto.Pagination != null)
+        {
+            paginationInfo = new PaginationInfo(
+                dto.Pagination.HasMore,
+                dto.Pagination.HasNewer,
+                dto.Pagination.OldestMessageId,
+                dto.Pagination.NewestMessageId,
+                dto.Pagination.OldestTimestamp,
+                dto.Pagination.NewestTimestamp,
+                dto.Pagination.TotalMessages,
+                dto.Pagination.ReturnedCount);
+        }
+
         return new GetConversationHistoryResponse(
             dto.Id,
             dto.Title,
             dto.SystemPrompt,
             dto.CreatedAt,
             messages,
-            metadata);
+            metadata,
+            paginationInfo);
     }
 
     private static MessageStatus MapMessageStatus(string status) => status.ToLowerInvariant() switch

@@ -1,17 +1,20 @@
-﻿namespace Aiva.Admin.Api.UseCases.Conversations.History;
+namespace Aiva.Admin.Api.UseCases.Conversations.History;
 
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
+using Core.Interfaces;
 
-public class GetConversationHistoryHandler(IReadRepository<Conversation> repository)
+public class GetConversationHistoryHandler(
+    IReadRepository<Conversation> repository,
+    IConversationMessageQueryService messageQueryService)
     : IQueryHandler<GetConversationHistoryQuery, Result<ConversationDetailDTO>>
 {
   public async ValueTask<Result<ConversationDetailDTO>> Handle(
       GetConversationHistoryQuery query,
       CancellationToken cancellationToken)
   {
-    // Use specification that includes user authorization at the database level
-    var spec = new ConversationByIdAndUserWithMessagesSpec(query.ConversationId, query.UserId);
+    // First, verify conversation exists and user has access (without loading all messages)
+    var spec = new ConversationByIdAndUserSpec(query.ConversationId, query.UserId);
     var conversation = await repository.FirstOrDefaultAsync(spec, cancellationToken);
 
     if (conversation is null)
@@ -19,16 +22,37 @@ public class GetConversationHistoryHandler(IReadRepository<Conversation> reposit
       return Result.NotFound("Conversation not found.");
     }
 
+    // Get paginated messages using cursor-based approach
+    var paginationParams = query.Pagination ?? new PaginationParams();
+    var messageResult = await GetPaginatedMessages(
+        query.ConversationId, 
+        paginationParams, 
+        cancellationToken);
+
     // Process messages for optimal FE consumption
-    var processedMessages = ProcessMessagesForDisplay(conversation.Messages);
+    var processedMessages = ProcessMessagesForDisplay(messageResult.Messages.ToList());
+
+    // Get total message count for metadata
+    var totalMessages = await messageQueryService.CountMessagesAsync(query.ConversationId, cancellationToken);
 
     // Create rich metadata
     var metadata = new ConversationMetadataDTO(
-        TotalMessages: conversation.Messages.Count,
-        TotalTokens: conversation.Messages.Sum(m => EstimateTokenCount(m.Content)),
+        TotalMessages: totalMessages,
+        TotalTokens: messageResult.Messages.Sum(m => EstimateTokenCount(m.Content)),
         LastActiveAt: conversation.LastMessageAt ?? conversation.CreatedAt,
         Status: "active",
         IsArchived: false);
+
+    // Create pagination info
+    var paginationInfo = new PaginationInfoDTO(
+        HasMore: messageResult.HasMore,
+        HasNewer: messageResult.HasNewer,
+        OldestMessageId: messageResult.Messages.FirstOrDefault()?.Id.Value,
+        NewestMessageId: messageResult.Messages.LastOrDefault()?.Id.Value,
+        OldestTimestamp: messageResult.Messages.FirstOrDefault()?.CreatedAt,
+        NewestTimestamp: messageResult.Messages.LastOrDefault()?.CreatedAt,
+        TotalMessages: totalMessages,
+        ReturnedCount: messageResult.Messages.Count);
 
     var dto = new ConversationDetailDTO(
         conversation.Id.Value,
@@ -36,9 +60,28 @@ public class GetConversationHistoryHandler(IReadRepository<Conversation> reposit
         conversation.SystemPrompt,
         conversation.CreatedAt,
         processedMessages,
-        metadata);
+        metadata,
+        paginationInfo);
 
     return Result.Success(dto);
+  }
+
+  private async Task<PaginatedMessages> GetPaginatedMessages(
+      ConversationId conversationId,
+      PaginationParams pagination,
+      CancellationToken cancellationToken)
+  {
+    var loadingMode = pagination.GetLoadingMode();
+    var limit = Math.Min(pagination.Limit, 200); // Cap at 200
+
+    return loadingMode switch
+    {
+      LoadingMode.Latest => await messageQueryService.GetLatestMessagesAsync(conversationId, limit, cancellationToken),
+      LoadingMode.Before => await messageQueryService.GetMessagesBeforeAsync(conversationId, pagination.BeforeMessageId!.Value, limit, cancellationToken),
+      LoadingMode.After => await messageQueryService.GetMessagesAfterAsync(conversationId, pagination.AfterMessageId!.Value, limit, cancellationToken),
+      LoadingMode.Around => await messageQueryService.GetMessagesAroundAsync(conversationId, pagination.AroundMessageId!.Value, limit, cancellationToken),
+      _ => await messageQueryService.GetLatestMessagesAsync(conversationId, limit, cancellationToken)
+    };
   }
 
   private static IReadOnlyList<ChatMessageDTO> ProcessMessagesForDisplay(
