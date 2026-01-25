@@ -30,7 +30,7 @@ public class ListUserConversationsHandler(IReadRepository<Conversation> reposito
 
     var items = conversations
         .Select(c => new ConversationDTO(
-            c.Id.Value,
+            c.Id,
             c.Title,
             c.CreatedAt,
             c.LastMessageAt,

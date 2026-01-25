@@ -1,7 +1,9 @@
+﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+
 namespace Aiva.Admin.Api.UseCases.Conversations;
 
 public record ConversationDTO(
-    Guid Id,
+    ConversationId Id,
     string Title,
     DateTime CreatedAt,
     DateTime? LastMessageAt,

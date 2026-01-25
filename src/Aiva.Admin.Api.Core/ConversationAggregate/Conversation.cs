@@ -5,7 +5,7 @@ namespace Aiva.Admin.Api.Core.ConversationAggregate;
 using ConversationAggregate.Events;
 using UserAggregate;
 
-public class Conversation : EntityBase<Conversation, ConversationId>, IAggregateRoot
+public class Conversation : AuditableEntity<Conversation, ConversationId>, IAggregateRoot
 {
   private readonly List<ChatMessage> _messages = [];
 
@@ -84,5 +84,13 @@ public class Conversation : EntityBase<Conversation, ConversationId>, IAggregate
     Title = Guard.Against.NullOrWhiteSpace(newTitle);
     TitleStatus = TitleGenerationStatus.Manual;
     return this;
+  }
+
+  public void Delete()
+  {
+    if (IsDeleted) return; // Already deleted
+
+    MarkAsDeleted();
+    RegisterDomainEvent(new ConversationDeletedEvent(Id, UserId));
   }
 }

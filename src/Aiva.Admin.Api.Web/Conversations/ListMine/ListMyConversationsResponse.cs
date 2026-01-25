@@ -7,9 +7,3 @@ public record ListMyConversationsResponse(
     int TotalCount,
     int TotalPages);
 
-public record ConversationRecord(
-    Guid Id,
-    string Title,
-    DateTime CreatedAt,
-    DateTime? LastMessageAt,
-    int MessageCount);

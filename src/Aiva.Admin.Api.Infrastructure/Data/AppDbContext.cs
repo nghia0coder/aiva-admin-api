@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Infrastructure.Data;
 
+using Configuration;
 using Core.ContributorAggregate;
 using Core.ConversationAggregate;
 using Core.FileAggregate;
@@ -8,7 +9,7 @@ using Core.StorageAggregate;
 using Core.SystemPromptAggregate;
 using Core.UserAggregate;
 
-// dotnet ef migrations add AddTitleGenerationStatus -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
+// dotnet ef migrations add AddIsDeletedColumn -c AppDbContext -p src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj  -s src/Aiva.Admin.Api.Web/Aiva.Admin.Api.Web.csproj  -o Data/Migrations
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
@@ -25,6 +26,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
     base.OnModelCreating(modelBuilder);
+
+    // Apply global query filter for soft delete
+    modelBuilder.ApplySoftDeleteFilter();
+
     modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
   }
 
