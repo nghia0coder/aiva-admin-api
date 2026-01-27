@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.UseCases.Conversations.Chat;
+namespace Aiva.Admin.Api.UseCases.Conversations.Chat;
 
 using System.Threading;
 using Aiva.Admin.Api.Core.SystemPromptAggregate;
@@ -6,12 +6,15 @@ using Core.Commons.Models;
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
+using Microsoft.Extensions.Logging;
 
 public class SendMessageHandler(
     IRepository<Conversation> repository,
     IChatCompletionService chatService,
     ISystemPromptService systemPromptService,
-    IRetrievalService retrievalService)
+    IRetrievalService retrievalService,
+    IRetrievalSettings retrievalSettings,
+    ILogger<SendMessageHandler> logger)
     : ICommandHandler<SendMessageCommand, Result<ChatMessageDTO>>
 {
   public async ValueTask<Result<ChatMessageDTO>> Handle(
@@ -30,19 +33,53 @@ public class SendMessageHandler(
     conversation.AddMessage(ChatRole.User, command.UserMessage);
 
     // *** RAG: Retrieve relevant context ***
+    // Use hybrid-specific threshold if available, otherwise fall back to default threshold
+    var searchStrategy = SearchStrategy.Hybrid;
+    var minScoreForSearch = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
+    var minScoreForValidation = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
+    
     var retrievalResult = await retrievalService.RetrieveContextAsync(
             command.UserMessage,
             new RetrievalOptions
             {
-              TopK = 5,
-              MinScore = 0.7,
-              Strategy = SearchStrategy.Hybrid  // Use hybrid for e-commerce
+              TopK = retrievalSettings.TopK,
+              MinScore = minScoreForSearch,
+              Strategy = searchStrategy  // Use hybrid for e-commerce
             },
             cancellationToken);
 
+    // *** GATE CHECK: Out-of-Scope Detection ***
+    if (retrievalSettings.EnableOutOfScopeDetection &&
+        (!retrievalResult.IsSuccess ||
+         !retrievalResult.Value.HasSufficientContext(
+             minScoreForValidation,
+             retrievalSettings.MinResultCount)))
+    {
+      // No relevant context found - return standard out-of-scope response without calling LLM
+      var outOfScopeMessage = OutOfScopeResponse.Default;
+
+      logger.LogWarning(
+          "Out-of-scope query detected. Query: {Query}, TopScore: {TopScore:F4}, ResultCount: {Count}, MinScoreThreshold: {MinScore}",
+          command.UserMessage,
+          retrievalResult.IsSuccess ? retrievalResult.Value.TopScore : 0,
+          retrievalResult.IsSuccess ? retrievalResult.Value.Results.Count : 0,
+          minScoreForValidation);
+
+      // Add out-of-scope response to conversation
+      var outOfScopeResponse = conversation.AddMessage(ChatRole.Assistant, outOfScopeMessage);
+      await repository.UpdateAsync(conversation, cancellationToken);
+
+      return Result.Success(new ChatMessageDTO(
+          outOfScopeResponse.Id.Value,
+          outOfScopeResponse.Role.Name,
+          outOfScopeResponse.Content,
+          outOfScopeResponse.CreatedAt));
+    }
+    // *** END GATE CHECK ***
+
     var messagesWithContext = await BuildAugmentedMessagesAsync(
             conversation,
-            retrievalResult.IsSuccess ? retrievalResult.Value.FormattedContext : null,
+            retrievalResult.Value.FormattedContext,
             cancellationToken);
 
     // Get AI response

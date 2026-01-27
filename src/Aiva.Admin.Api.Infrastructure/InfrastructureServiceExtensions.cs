@@ -88,6 +88,9 @@ public static class InfrastructureServiceExtensions
     services.AddSingleton<IVectorStoreSettings>(sp =>
         sp.GetRequiredService<IOptions<VectorStoreConfiguration>>().Value);
 
+    // Register IRetrievalSettings interface for out-of-scope detection
+    services.AddSingleton<IRetrievalSettings>(appSettings.Retrieval);
+
     // Configure Text Extraction
     services.Configure<TextExtractionConfiguration>(
         config.GetSection(TextExtractionConfiguration.SectionName));

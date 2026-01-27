@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Ardalis.Result;
 
 namespace Aiva.Admin.Api.Infrastructure.Retrieval;
@@ -33,14 +33,36 @@ public sealed class RetrievalService : IRetrievalService
   {
     options ??= new RetrievalOptions();
 
+    _logger.LogInformation(
+        "Starting retrieval. Query: {Query}, Strategy: {Strategy}, Collection: {Collection}, TopK: {TopK}, MinScore: {MinScore}",
+        query,
+        options.Strategy,
+        _settings.DefaultCollectionName,
+        options.TopK,
+        options.MinScore);
+
     // 1. Generate embedding for the query
+    _logger.LogDebug("Generating embedding for query: {Query}", query);
     var embeddingResult = await _embeddingService.GenerateEmbeddingAsync(
         query, cancellationToken);
 
     if (!embeddingResult.IsSuccess)
+    {
+      _logger.LogError(
+          "Failed to generate embedding. Query: {Query}, Errors: {Errors}",
+          query,
+          string.Join(", ", embeddingResult.Errors));
       return Result.Error(string.Join(", ", embeddingResult.Errors));
+    }
+
+    _logger.LogDebug(
+        "Embedding generated successfully. Vector dimension: {Dimension}",
+        embeddingResult.Value.Length);
 
     // 2. Execute search based on strategy
+    _logger.LogInformation("Executing {Strategy} search on collection: {Collection}", 
+        options.Strategy, _settings.DefaultCollectionName);
+    
     var searchResult = options.Strategy switch
     {
       SearchStrategy.VectorOnly => await _vectorStoreService.SearchAsync(
@@ -75,11 +97,27 @@ public sealed class RetrievalService : IRetrievalService
     };
 
     if (!searchResult.IsSuccess)
+    {
+      _logger.LogError(
+          "Search failed. Query: {Query}, Strategy: {Strategy}, Errors: {Errors}",
+          query,
+          options.Strategy,
+          string.Join(", ", searchResult.Errors));
       return Result.Error(string.Join(", ", searchResult.Errors));
+    }
+
+    _logger.LogInformation(
+        "Search completed successfully. Found {Count} results",
+        searchResult.Value.Count);
 
     // 3. Build formatted context for prompt injection
     var formattedContext = BuildContextString(searchResult.Value);
     var tokenCount = EstimateTokenCount(formattedContext);
+
+    _logger.LogDebug(
+        "Context built. TokenCount: {TokenCount}, ContextLength: {Length}",
+        tokenCount,
+        formattedContext.Length);
 
     return Result.Success(new RetrievalResult
     {

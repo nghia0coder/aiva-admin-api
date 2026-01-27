@@ -1,5 +1,6 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Ardalis.SharedKernel;
+using Microsoft.Extensions.Logging;
 
 namespace Aiva.Admin.Api.Web.Conversations.Stream;
 
@@ -8,12 +9,15 @@ using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
 using Core.SystemPromptAggregate;
+using Infrastructure.Configuration;
 
 public class StreamChat(
     IRepository<Conversation> repository,
     IChatCompletionService chatService,
     ISystemPromptService systemPromptService,
-    IRetrievalService retrievalService)
+    IRetrievalService retrievalService,
+    AppSettings appSettings,
+    ILogger<StreamChat> logger)
     : Endpoint<StreamChatRequest>
 {
   public override void Configure()
@@ -46,19 +50,97 @@ public class StreamChat(
     conversation.AddMessage(ChatRole.User, request.Message);
 
     // *** RAG: Retrieve relevant context ***
+    var retrievalSettings = appSettings.Retrieval;
+    
+    // Use hybrid-specific threshold if available, otherwise fall back to default threshold
+    var searchStrategy = SearchStrategy.Hybrid;
+    var minScoreForSearch = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
+    var minScoreForValidation = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
+    
+    logger.LogInformation(
+        "Starting retrieval for query: {Query}. Strategy: {Strategy}, TopK: {TopK}, MinScore: {MinScore} (Hybrid threshold: {HybridThreshold})",
+        request.Message,
+        searchStrategy,
+        retrievalSettings.TopK,
+        minScoreForSearch,
+        retrievalSettings.HybridSearchMinScoreThreshold);
+    
     var retrievalResult = await retrievalService.RetrieveContextAsync(
         request.Message,
         new RetrievalOptions
         {
-          TopK = 5,
-          MinScore = 0.7,
-          Strategy = SearchStrategy.Hybrid  // Use hybrid for e-commerce
+          TopK = retrievalSettings.TopK,
+          MinScore = minScoreForSearch,
+          Strategy = searchStrategy  // Use hybrid for e-commerce
         },
         ct);
 
+    // Log retrieval result details
+    if (retrievalResult.IsSuccess)
+    {
+      logger.LogInformation(
+          "Retrieval successful. ResultCount: {Count}, TopScore: {TopScore:F4}, AvgScore: {AvgScore:F4}, " +
+          "HasSufficientContext: {HasSufficient}, MinScoreThreshold: {MinScore}, MinResultCount: {MinResults}",
+          retrievalResult.Value.Results.Count,
+          retrievalResult.Value.TopScore,
+          retrievalResult.Value.AverageScore,
+          retrievalResult.Value.HasSufficientContext(
+              minScoreForValidation,
+              retrievalSettings.MinResultCount),
+          minScoreForValidation,
+          retrievalSettings.MinResultCount);
+      
+      // Log individual result scores for debugging
+      if (retrievalResult.Value.Results.Count > 0)
+      {
+        var scoreDetails = string.Join(", ", 
+            retrievalResult.Value.Results.Select((r, i) => $"#{i + 1}: {r.Score:F4}"));
+        logger.LogDebug("Retrieved result scores: {Scores}", scoreDetails);
+      }
+    }
+    else
+    {
+      logger.LogError(
+          "Retrieval failed. Query: {Query}, Errors: {Errors}",
+          request.Message,
+          string.Join(", ", retrievalResult.Errors));
+    }
+
+    // *** GATE CHECK: Out-of-Scope Detection ***
+    if (retrievalSettings.EnableOutOfScopeDetection &&
+        (!retrievalResult.IsSuccess ||
+         !retrievalResult.Value.HasSufficientContext(
+             minScoreForValidation,
+             retrievalSettings.MinResultCount)))
+    {
+      // No relevant context found - return standard out-of-scope response without calling LLM
+      var outOfScopeMessage = OutOfScopeResponse.Default;
+
+      logger.LogWarning(
+          "Out-of-scope query detected. Query: {Query}, IsSuccess: {IsSuccess}, " +
+          "TopScore: {TopScore:F4}, ResultCount: {Count}, MinScoreThreshold: {MinScore}, MinResultCount: {MinResults}",
+          request.Message,
+          retrievalResult.IsSuccess,
+          retrievalResult.IsSuccess ? retrievalResult.Value.TopScore : 0,
+          retrievalResult.IsSuccess ? retrievalResult.Value.Results.Count : 0,
+          minScoreForValidation,
+          retrievalSettings.MinResultCount);
+
+      // Stream the out-of-scope response (for consistent UX)
+      await SendEventAsync("message", new { content = outOfScopeMessage }, ct);
+
+      // Save the response to conversation history
+      conversation.AddMessage(ChatRole.Assistant, outOfScopeMessage);
+      await repository.UpdateAsync(conversation, ct);
+
+      await SendEventAsync("done", new { complete = true, outOfScope = true }, ct);
+      return;
+    }
+    // *** END GATE CHECK ***
+
     var messagesWithContext = await BuildAugmentedMessagesAsync(
         conversation,
-        retrievalResult.IsSuccess ? retrievalResult.Value.FormattedContext : null,
+        retrievalResult.Value.FormattedContext,
         ct);
 
     var fullResponse = new System.Text.StringBuilder();

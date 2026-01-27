@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Infrastructure.Configuration;
+namespace Aiva.Admin.Api.Infrastructure.Configuration;
 
 public class AppSettings
 {
@@ -17,6 +17,7 @@ public class AppSettings
   public MailserverSettings Mailserver { get; set; } = new();
   public WorkerSettings Worker { get; set; } = new();
   public TitleGenerationSettings TitleGeneration { get; set; } = new();
+  public RetrievalSettings Retrieval { get; set; } = new();
 }
 
 public class ConnectionStringsSettings
@@ -134,4 +135,44 @@ public sealed class TitleGenerationSettings
   public int BatchSize { get; set; } = 10;
   public string? DeploymentName { get; set; }
   public int MaxTitleLength { get; set; } = 50;
+}
+
+/// <summary>
+/// Settings for RAG retrieval and out-of-scope detection
+/// </summary>
+public sealed class RetrievalSettings : Core.Interfaces.IRetrievalSettings
+{
+  public const string SectionName = "Retrieval";
+
+  /// <summary>
+  /// Minimum relevance score threshold (0.0-1.0). Documents below this score are filtered out.
+  /// Used for vector-only search. Recommended: 0.7-0.8
+  /// </summary>
+  public double MinScoreThreshold { get; set; } = 0.7;
+
+  /// <summary>
+  /// Minimum relevance score threshold for hybrid search (0.0-1.0).
+  /// Hybrid search with semantic ranking typically produces lower scores (0.01-0.1),
+  /// so this threshold should be lower than MinScoreThreshold.
+  /// If not set, falls back to MinScoreThreshold.
+  /// Recommended: 0.01-0.05 for hybrid search with semantic ranking
+  /// </summary>
+  public double? HybridSearchMinScoreThreshold { get; set; }
+
+  /// <summary>
+  /// Minimum number of results required to proceed with LLM generation.
+  /// If fewer results are found, the query is considered out-of-scope.
+  /// </summary>
+  public int MinResultCount { get; set; } = 1;
+
+  /// <summary>
+  /// Enable or disable out-of-scope detection.
+  /// When disabled, LLM will always be called even without context.
+  /// </summary>
+  public bool EnableOutOfScopeDetection { get; set; } = true;
+
+  /// <summary>
+  /// Number of top documents to retrieve
+  /// </summary>
+  public int TopK { get; set; } = 5;
 }

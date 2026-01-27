@@ -1,4 +1,4 @@
-﻿using Ardalis.Result;
+using Ardalis.Result;
 using Azure;
 using Azure.Identity;
 using Azure.Search.Documents;
@@ -569,12 +569,26 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
     try
     {
       var results = new List<VectorSearchResult>();
+      var allScores = new List<double>(); // Track all scores for debugging
+      var filteredCount = 0;
       
       await foreach (var result in response.Value.GetResultsAsync())
       {
+        var score = result.Score ?? 0;
+        allScores.Add(score);
+        
+        // Log all scores for debugging (including filtered ones)
+        _logger.LogDebug(
+            "Search result: Score={Score}, MinScore threshold={MinScore}, ChunkId={ChunkId}, DocumentId={DocumentId}",
+            score, minScore, result.Document["id"]?.ToString(), result.Document["documentId"]?.ToString());
+        
         // Filter by minimum score if specified
-        if (minScore.HasValue && result.Score < minScore.Value)
+        if (minScore.HasValue && score < minScore.Value)
         {
+          filteredCount++;
+          _logger.LogDebug(
+              "Filtered out result with score {Score} (below threshold {MinScore}). ChunkId: {ChunkId}",
+              score, minScore.Value, result.Document["id"]?.ToString());
           continue;
         }
 
@@ -583,7 +597,7 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
           ChunkId = result.Document["id"]?.ToString() ?? "",
           DocumentId = result.Document["documentId"]?.ToString() ?? "",
           Content = result.Document["content"]?.ToString() ?? "",
-          Score = result.Score ?? 0,
+          Score = score,
           Metadata = new DocumentChunkMetadata
           {
             FileName = result.Document["fileName"]?.ToString(),
@@ -622,7 +636,26 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
         results.Add(vectorResult);
       }
 
-      _logger.LogDebug("Processed {Count} search results with semantic information", results.Count);
+      // Log detailed summary for debugging
+      if (allScores.Count > 0)
+      {
+        _logger.LogInformation(
+            "Search results processed. Total: {Total}, Filtered: {Filtered}, Returned: {Returned}, " +
+            "TopScore: {TopScore:F4}, AvgScore: {AvgScore:F4}, MinScore: {MinScore:F4}, Threshold: {Threshold}",
+            allScores.Count,
+            filteredCount,
+            results.Count,
+            allScores.Max(),
+            allScores.Average(),
+            allScores.Min(),
+            minScore);
+      }
+      else
+      {
+        _logger.LogWarning(
+            "No search results returned from Azure AI Search. MinScore threshold: {MinScore}",
+            minScore);
+      }
       
       return Result.Success<IReadOnlyList<VectorSearchResult>>(results);
     }
