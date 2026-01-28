@@ -60,7 +60,18 @@ public static class InfrastructureServiceExtensions
     });
 
     services.AddSingleton<IMemoryCache, MemoryCache>();
-    services.AddScoped<ISystemPromptService, SystemPromptService>();
+    
+    // Register System Prompt Service based on configuration
+    if (appSettings.SystemPrompt.UseFileBasedPrompts)
+    {
+      logger.LogInformation("Using FILE-BASED system prompts from prompts/ folder");
+      services.AddScoped<ISystemPromptService, FileSystemPromptService>();
+    }
+    else
+    {
+      logger.LogInformation("Using DATABASE-BASED system prompts");
+      services.AddScoped<ISystemPromptService, SystemPromptService>();
+    }
 
     // Register Retrieval Service
     services.AddScoped<IRetrievalService, RetrievalService>();

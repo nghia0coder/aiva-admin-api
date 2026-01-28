@@ -18,6 +18,7 @@ public class AppSettings
   public WorkerSettings Worker { get; set; } = new();
   public TitleGenerationSettings TitleGeneration { get; set; } = new();
   public RetrievalSettings Retrieval { get; set; } = new();
+  public SystemPromptSettings SystemPrompt { get; set; } = new();
 }
 
 public class ConnectionStringsSettings
@@ -175,4 +176,24 @@ public sealed class RetrievalSettings : Core.Interfaces.IRetrievalSettings
   /// Number of top documents to retrieve
   /// </summary>
   public int TopK { get; set; } = 5;
+}
+
+/// <summary>
+/// Settings for System Prompt loading strategy
+/// </summary>
+public sealed class SystemPromptSettings
+{
+  public const string SectionName = "SystemPrompt";
+
+  /// <summary>
+  /// Source for system prompts: "Database" or "File"
+  /// - Database: Load from SystemPrompts table (production mode)
+  /// - File: Load from markdown files in prompts/ folder (development/testing mode)
+  /// </summary>
+  public string Source { get; set; } = "Database";
+
+  /// <summary>
+  /// Whether to use file-based prompts (shorthand property)
+  /// </summary>
+  public bool UseFileBasedPrompts => Source.Equals("File", StringComparison.OrdinalIgnoreCase);
 }
