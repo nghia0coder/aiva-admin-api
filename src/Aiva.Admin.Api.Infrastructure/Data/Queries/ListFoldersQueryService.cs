@@ -52,6 +52,11 @@ public class ListFoldersQueryService(AppDbContext db) : IListFoldersQueryService
         query = query.Where(f => f.ParentFolderId == FolderId.From(parentFolderId.Value));
       }
     }
+    else
+    {
+      // When no parentFolderId is specified, only return root level folders (folders without a parent)
+      query = query.Where(f => f.ParentFolderId == null);
+    }
 
     if (!string.IsNullOrWhiteSpace(searchTerm))
     {

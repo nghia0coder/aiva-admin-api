@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Infrastructure;
+namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.SystemPrompts;
 using AzureAI;
@@ -17,6 +17,7 @@ using TextExtraction;
 using TextExtraction.Extractors;
 using UseCases.Contributors.List;
 using UseCases.Folders.GetByStorage;
+using UseCases.Folders.GetContents;
 using UseCases.Folders.List;
 using UseCases.Storages.List;
 using VectorStore;
@@ -139,6 +140,7 @@ public static class InfrastructureServiceExtensions
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
            .AddScoped<IGetFoldersByStorageQueryService, GetFoldersByStorageQueryService>()
+           .AddScoped<IGetFolderContentsQueryService, GetFolderContentsQueryService>()
            .AddScoped<IListFoldersQueryService, ListFoldersQueryService>()
            .AddScoped<IListContributorsQueryService, ListContributorsQueryService>()
            .AddScoped<IListStoragesQueryService, ListStoragesQueryService>()
