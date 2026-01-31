@@ -1,4 +1,4 @@
-﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+using Aiva.Admin.Api.Core.ConversationAggregate;
 
 namespace Aiva.Admin.Api.UseCases.Conversations;
 
@@ -14,7 +14,9 @@ public record ChatMessageDTO(
     string Role,
     string Content,
     DateTime CreatedAt,
-    MessageMetadataDTO? Metadata = null);
+    MessageMetadataDTO? Metadata = null,
+    string ResponseType = "text",
+    TableDataDTO? StructuredData = null);
 
 public record MessageMetadataDTO(
     int TokenCount,
@@ -49,3 +51,38 @@ public record PaginationInfoDTO(
     DateTime? NewestTimestamp, // Alternative timestamp-based cursor
     int TotalMessages,         // Total messages in conversation (for UI)
     int ReturnedCount);        // Messages in this response
+
+// Structured response DTOs for product tables
+public record TableDataDTO(
+    TableMetadataDTO Metadata,
+    IReadOnlyList<TableColumnDTO> Columns,
+    IReadOnlyList<TableRowDTO> Rows,
+    IReadOnlyList<ActionMetadataDTO> GlobalActions);
+
+public record TableMetadataDTO(
+    string Title,
+    string? Description,
+    int TotalCount,
+    int DisplayedCount);
+
+public record TableColumnDTO(
+    string Key,
+    string Label,
+    string Type,
+    bool Sortable = true,
+    bool Filterable = false);
+
+public record TableRowDTO(
+    string Id,
+    IReadOnlyDictionary<string, object?> Cells,
+    IReadOnlyList<ActionMetadataDTO> Actions);
+
+public record ActionMetadataDTO(
+    string Type,
+    string Label,
+    string? Icon,
+    string Endpoint,
+    string Method,
+    IReadOnlyDictionary<string, object> Params,
+    bool IsDisabled = false,
+    string? DisabledReason = null);

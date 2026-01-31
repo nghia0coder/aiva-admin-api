@@ -19,6 +19,7 @@ public class AppSettings
   public TitleGenerationSettings TitleGeneration { get; set; } = new();
   public RetrievalSettings Retrieval { get; set; } = new();
   public SystemPromptSettings SystemPrompt { get; set; } = new();
+  public IntentDetectionSettings IntentDetection { get; set; } = new();
 }
 
 public class ConnectionStringsSettings
@@ -196,4 +197,59 @@ public sealed class SystemPromptSettings
   /// Whether to use file-based prompts (shorthand property)
   /// </summary>
   public bool UseFileBasedPrompts => Source.Equals("File", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// Settings for intent detection and classification
+/// </summary>
+public sealed class IntentDetectionSettings
+{
+  public const string SectionName = "IntentDetection";
+
+  /// <summary>
+  /// Enable or disable intent detection feature
+  /// </summary>
+  public bool Enabled { get; set; } = true;
+
+  /// <summary>
+  /// Minimum confidence threshold (0.0-1.0) to trust the intent classification
+  /// </summary>
+  public double ConfidenceThreshold { get; set; } = 0.7;
+
+  /// <summary>
+  /// Enable entity extraction (product names, categories, price ranges, etc.)
+  /// </summary>
+  public bool EnableEntityExtraction { get; set; } = true;
+
+  /// <summary>
+  /// Azure OpenAI model deployment name for intent detection
+  /// Use a fast, cheaper model like gpt-4o-mini for classification
+  /// </summary>
+  public string ModelDeployment { get; set; } = "gpt-4o-mini";
+
+  /// <summary>
+  /// Temperature for intent detection (lower = more deterministic)
+  /// Recommended: 0.1 for classification tasks
+  /// </summary>
+  public double Temperature { get; set; } = 0.1;
+
+  /// <summary>
+  /// Maximum tokens for intent detection response
+  /// </summary>
+  public int MaxTokens { get; set; } = 500;
+
+  /// <summary>
+  /// Path to intent detection system prompt file
+  /// </summary>
+  public string PromptFilePath { get; set; } = "prompts/intent_detection_prompt.md";
+
+  /// <summary>
+  /// Enable caching of intent detection results
+  /// </summary>
+  public bool EnableCaching { get; set; } = false;
+
+  /// <summary>
+  /// Cache TTL in seconds (only used if EnableCaching = true)
+  /// </summary>
+  public int CacheTtlSeconds { get; set; } = 300;  // 5 minutes
 }

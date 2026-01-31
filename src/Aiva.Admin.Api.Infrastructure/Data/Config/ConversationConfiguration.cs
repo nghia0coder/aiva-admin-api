@@ -1,4 +1,4 @@
-﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.UserAggregate;
 
 namespace Aiva.Admin.Api.Infrastructure.Data.Config;
@@ -83,6 +83,21 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
     builder.Property(m => m.CreatedAt)
         .IsRequired();
 
+    // Structured response support
+    builder.Property(m => m.ResponseType)
+        .HasConversion(
+            type => type.Name,
+            name => ChatResponseType.FromName(name, false))
+        .HasMaxLength(50)
+        .IsRequired()
+        .HasDefaultValue(ChatResponseType.Text);
+
+    builder.Property(m => m.StructuredDataJson)
+        .HasColumnType("nvarchar(max)")
+        .IsRequired(false);
+
     builder.HasIndex(m => m.ConversationId);
+    builder.HasIndex(m => m.ResponseType)
+        .HasFilter("[ResponseType] <> 'Text'");  // Filtered index for non-text responses
   }
 }

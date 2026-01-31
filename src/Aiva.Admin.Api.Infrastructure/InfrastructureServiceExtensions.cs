@@ -11,6 +11,7 @@ using Data.Config;
 using Data.Queries;
 using Data.Seeding;
 using Embedding;
+using Formatting;
 using Microsoft.Extensions.Caching.Memory;
 using Retrieval;
 using TextExtraction;
@@ -125,6 +126,19 @@ public static class InfrastructureServiceExtensions
 
     services.AddSingleton<IChatCompletionService, AzureOpenAIChatService>();
     services.AddSingleton<ITitleGenerationService, AzureOpenAITitleGenerationService>();
+    
+    // Register Intent Detection Service
+    services.AddScoped<IIntentDetectionService>(sp =>
+    {
+      var logger = sp.GetRequiredService<ILogger<AzureOpenAIIntentDetectionService>>();
+      return new AzureOpenAIIntentDetectionService(
+          appSettings.AzureAI,
+          appSettings.IntentDetection,
+          logger);
+    });
+    
+    // Register Response Formatter Service
+    services.AddScoped<IResponseFormatterService, ProductTableResponseFormatterService>();
 
     // Configure Azure Blob Storage
     services.Configure<BlobStorageConfiguration>(

@@ -1,6 +1,5 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Ardalis.SharedKernel;
-using Microsoft.Extensions.Logging;
 
 namespace Aiva.Admin.Api.Web.Conversations.Stream;
 
@@ -16,6 +15,8 @@ public class StreamChat(
     IChatCompletionService chatService,
     ISystemPromptService systemPromptService,
     IRetrievalService retrievalService,
+    IIntentDetectionService intentDetectionService,
+    IResponseFormatterService responseFormatterService,
     AppSettings appSettings,
     ILogger<StreamChat> logger)
     : Endpoint<StreamChatRequest>
@@ -49,14 +50,42 @@ public class StreamChat(
     // Add user message
     conversation.AddMessage(ChatRole.User, request.Message);
 
-    // *** RAG: Retrieve relevant context ***
+    // *** STEP 1: Detect Intent ***
+    var intentDetectionSettings = appSettings.IntentDetection;
+    IntentDetectionResult? intentResult = null;
+
+    if (intentDetectionSettings.Enabled)
+    {
+      logger.LogInformation("Detecting intent for query: {Query}", request.Message);
+
+      var intentDetectionResult = await intentDetectionService.DetectIntentAsync(
+          request.Message,
+          conversation.Messages.ToList(),
+          ct);
+
+      if (intentDetectionResult.IsSuccess)
+      {
+        intentResult = intentDetectionResult.Value;
+        logger.LogInformation(
+            "Intent detected: {Intent} (Confidence: {Confidence:F2}, RequiresStructured: {RequiresStructured})",
+            intentResult.Intent.Name,
+            intentResult.Confidence,
+            intentResult.RequiresStructuredResponse);
+      }
+      else
+      {
+        logger.LogWarning("Intent detection failed: {Errors}", string.Join(", ", intentDetectionResult.Errors));
+      }
+    }
+
+    // *** STEP 2: RAG - Retrieve relevant context ***
     var retrievalSettings = appSettings.Retrieval;
-    
+
     // Use hybrid-specific threshold if available, otherwise fall back to default threshold
     var searchStrategy = SearchStrategy.Hybrid;
     var minScoreForSearch = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
     var minScoreForValidation = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold;
-    
+
     logger.LogInformation(
         "Starting retrieval for query: {Query}. Strategy: {Strategy}, TopK: {TopK}, MinScore: {MinScore} (Hybrid threshold: {HybridThreshold})",
         request.Message,
@@ -64,7 +93,7 @@ public class StreamChat(
         retrievalSettings.TopK,
         minScoreForSearch,
         retrievalSettings.HybridSearchMinScoreThreshold);
-    
+
     var retrievalResult = await retrievalService.RetrieveContextAsync(
         request.Message,
         new RetrievalOptions
@@ -89,11 +118,11 @@ public class StreamChat(
               retrievalSettings.MinResultCount),
           minScoreForValidation,
           retrievalSettings.MinResultCount);
-      
+
       // Log individual result scores for debugging
       if (retrievalResult.Value.Results.Count > 0)
       {
-        var scoreDetails = string.Join(", ", 
+        var scoreDetails = string.Join(", ",
             retrievalResult.Value.Results.Select((r, i) => $"#{i + 1}: {r.Score:F4}"));
         logger.LogDebug("Retrieved result scores: {Scores}", scoreDetails);
       }
@@ -138,6 +167,117 @@ public class StreamChat(
     }
     // *** END GATE CHECK ***
 
+    // *** STEP 3: Check if structured response is needed ***
+    var shouldUseStructuredResponse = intentResult != null
+        && intentResult.RequiresStructuredResponse
+        && (intentResult.Intent == QueryIntent.Browse
+            || intentResult.Intent == QueryIntent.Compare
+            || intentResult.Intent == QueryIntent.Purchase)
+        && retrievalResult.Value.Results.Count > 0;
+
+    if (shouldUseStructuredResponse)
+    {
+      logger.LogInformation(
+          "Using structured response for intent: {Intent} with {Count} results",
+          intentResult!.Intent.Name,
+          retrievalResult.Value.Results.Count);
+
+      // Format structured response
+      var formatResult = await responseFormatterService.FormatStructuredResponseAsync(
+          intentResult.Intent,
+          retrievalResult.Value.Results,
+          request.Message,
+          ct);
+
+      if (formatResult.IsSuccess)
+      {
+        var package = formatResult.Value;
+
+        // Stream chatbot suggestion text first
+        await SendEventAsync("message", new { content = package.ChatbotSuggestionText }, ct);
+
+        // Send table metadata and columns first
+        await SendEventAsync("structured_data_start", new
+        {
+          metadata = new
+          {
+            title = package.TableData.Metadata.Title,
+            description = package.TableData.Metadata.Description,
+            totalCount = package.TableData.Metadata.TotalCount,
+            displayedCount = package.TableData.Metadata.DisplayedCount
+          },
+          columns = package.TableData.Columns.Select(c => new
+          {
+            key = c.Key,
+            label = c.Label,
+            type = c.Type.ToString(),
+            sortable = c.Sortable,
+            filterable = c.Filterable
+          })
+        }, ct);
+
+        // Stream each row individually for progressive rendering
+        foreach (var row in package.TableData.Rows)
+        {
+          await SendEventAsync("structured_data_row", new
+          {
+            id = row.Id,
+            cells = row.Cells,
+            actions = row.Actions.Select(a => new
+            {
+              type = a.Type.ToString(),
+              label = a.Label,
+              icon = a.Icon,
+              endpoint = a.Endpoint,
+              method = a.Method,
+              @params = a.Params,
+              isDisabled = a.IsDisabled,
+              disabledReason = a.DisabledReason
+            })
+          }, ct);
+
+          // Optional: Add small delay between rows for smoother animation
+          await Task.Delay(50, ct);
+        }
+
+        // Send global actions last
+        await SendEventAsync("structured_data_complete", new
+        {
+          globalActions = package.TableData.GlobalActions.Select(a => new
+          {
+            type = a.Type.ToString(),
+            label = a.Label,
+            icon = a.Icon,
+            endpoint = a.Endpoint,
+            method = a.Method,
+            @params = a.Params,
+            isDisabled = a.IsDisabled,
+            disabledReason = a.DisabledReason
+          })
+        }, ct);
+
+        // Save assistant message with structured data
+        var messageContent = package.ChatbotSuggestionText;
+        var message = conversation.AddMessage(ChatRole.Assistant, messageContent);
+
+        // Store structured data as JSON in the message
+        message.SetStructuredResponse(package.TableData);
+
+        await repository.UpdateAsync(conversation, ct);
+
+        await SendEventAsync("done", new { complete = true, hasStructuredData = true }, ct);
+        return;
+      }
+      else
+      {
+        logger.LogWarning(
+            "Structured response formatting failed: {Errors}. Falling back to text response.",
+            string.Join(", ", formatResult.Errors));
+        // Fall through to normal text streaming
+      }
+    }
+
+    // *** STEP 4: Normal text streaming (default path) ***
     var messagesWithContext = await BuildAugmentedMessagesAsync(
         conversation,
         retrievalResult.Value.FormattedContext,
