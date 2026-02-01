@@ -1,4 +1,4 @@
-namespace Aiva.Admin.Api.Infrastructure;
+﻿namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.SystemPrompts;
 using AzureAI;
@@ -32,13 +32,9 @@ public static class InfrastructureServiceExtensions
     ConfigurationManager config,
     ILogger logger)
   {
-    // Try to get connection strings in order of priority:
-    // 1. "cleanarchitecture" - provided by Aspire when using .WithReference(cleanArchDb)
     // 2. "DefaultConnection" - traditional SQL Server connection
     // 3. "SqliteConnection" - fallback to SQLite
-    string? connectionString = config.GetConnectionString(appSettings.ConnectionStrings.AivaChatbotDb)
-                               ?? appSettings.ConnectionStrings.DefaultConnection
-                               ?? appSettings.ConnectionStrings.SqliteConnection;
+    string? connectionString = appSettings.ConnectionStrings.DefaultConnection ?? appSettings.ConnectionStrings.SqliteConnection;
     Guard.Against.Null(connectionString);
 
     services.AddScoped<EventDispatchInterceptor>();
@@ -48,11 +44,9 @@ public static class InfrastructureServiceExtensions
     {
       var eventDispatchInterceptor = provider.GetRequiredService<EventDispatchInterceptor>();
 
-      // Use SQL Server if Aspire or DefaultConnection is available, otherwise use SQLite
-      if (config.GetConnectionString(appSettings.ConnectionStrings.AivaChatbotDb) != null ||
-          appSettings.ConnectionStrings.DefaultConnection != null)
+      if (appSettings.ConnectionStrings.DefaultConnection != null)
       {
-        options.UseSqlServer(connectionString);
+        options.UseAzureSql(connectionString);
       }
       else
       {
@@ -63,7 +57,7 @@ public static class InfrastructureServiceExtensions
     });
 
     services.AddSingleton<IMemoryCache, MemoryCache>();
-    
+
     // Register System Prompt Service based on configuration
     if (appSettings.SystemPrompt.UseFileBasedPrompts)
     {
@@ -126,7 +120,7 @@ public static class InfrastructureServiceExtensions
 
     services.AddSingleton<IChatCompletionService, AzureOpenAIChatService>();
     services.AddSingleton<ITitleGenerationService, AzureOpenAITitleGenerationService>();
-    
+
     // Register Intent Detection Service
     services.AddScoped<IIntentDetectionService>(sp =>
     {
@@ -136,7 +130,7 @@ public static class InfrastructureServiceExtensions
           appSettings.IntentDetection,
           logger);
     });
-    
+
     // Register Response Formatter Service
     services.AddScoped<IResponseFormatterService, ProductTableResponseFormatterService>();
 
