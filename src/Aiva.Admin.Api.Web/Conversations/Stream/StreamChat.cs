@@ -50,7 +50,7 @@ public class StreamChat(
     // Add user message
     conversation.AddMessage(ChatRole.User, request.Message);
 
-    // *** STEP 1: Detect Intent ***
+    // Detect Intent
     var intentDetectionSettings = appSettings.IntentDetection;
     IntentDetectionResult? intentResult = null;
 
@@ -78,7 +78,7 @@ public class StreamChat(
       }
     }
 
-    // *** STEP 2: RAG - Retrieve relevant context ***
+    // Retrieve relevant context
     var retrievalSettings = appSettings.Retrieval;
 
     // Use hybrid-specific threshold if available, otherwise fall back to default threshold
@@ -107,18 +107,6 @@ public class StreamChat(
     // Log retrieval result details
     if (retrievalResult.IsSuccess)
     {
-      logger.LogInformation(
-          "Retrieval successful. ResultCount: {Count}, TopScore: {TopScore:F4}, AvgScore: {AvgScore:F4}, " +
-          "HasSufficientContext: {HasSufficient}, MinScoreThreshold: {MinScore}, MinResultCount: {MinResults}",
-          retrievalResult.Value.Results.Count,
-          retrievalResult.Value.TopScore,
-          retrievalResult.Value.AverageScore,
-          retrievalResult.Value.HasSufficientContext(
-              minScoreForValidation,
-              retrievalSettings.MinResultCount),
-          minScoreForValidation,
-          retrievalSettings.MinResultCount);
-
       // Log individual result scores for debugging
       if (retrievalResult.Value.Results.Count > 0)
       {
@@ -145,16 +133,6 @@ public class StreamChat(
       // No relevant context found - return standard out-of-scope response without calling LLM
       var outOfScopeMessage = OutOfScopeResponse.Default;
 
-      logger.LogWarning(
-          "Out-of-scope query detected. Query: {Query}, IsSuccess: {IsSuccess}, " +
-          "TopScore: {TopScore:F4}, ResultCount: {Count}, MinScoreThreshold: {MinScore}, MinResultCount: {MinResults}",
-          request.Message,
-          retrievalResult.IsSuccess,
-          retrievalResult.IsSuccess ? retrievalResult.Value.TopScore : 0,
-          retrievalResult.IsSuccess ? retrievalResult.Value.Results.Count : 0,
-          minScoreForValidation,
-          retrievalSettings.MinResultCount);
-
       // Stream the out-of-scope response (for consistent UX)
       await SendEventAsync("message", new { content = outOfScopeMessage }, ct);
 
@@ -167,7 +145,7 @@ public class StreamChat(
     }
     // *** END GATE CHECK ***
 
-    // *** STEP 3: Check if structured response is needed ***
+    // Check if structured response is needed
     var shouldUseStructuredResponse = intentResult != null
         && intentResult.RequiresStructuredResponse
         && (intentResult.Intent == QueryIntent.Browse
@@ -277,7 +255,7 @@ public class StreamChat(
       }
     }
 
-    // *** STEP 4: Normal text streaming (default path) ***
+    // Normal text streaming
     var messagesWithContext = await BuildAugmentedMessagesAsync(
         conversation,
         retrievalResult.Value.FormattedContext,

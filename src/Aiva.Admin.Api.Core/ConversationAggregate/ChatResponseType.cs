@@ -1,4 +1,4 @@
-using Ardalis.SmartEnum;
+﻿using Ardalis.SmartEnum;
 
 namespace Aiva.Admin.Api.Core.ConversationAggregate;
 
@@ -19,9 +19,14 @@ public sealed class ChatResponseType : SmartEnum<ChatResponseType>
   public static readonly ChatResponseType StructuredTable = new(nameof(StructuredTable), 1);
 
   /// <summary>
+  /// Structured data response (e.g., JSON objects, complex data structures)
+  /// </summary>
+  public static readonly ChatResponseType Structured = new(nameof(Structured), 2);
+
+  /// <summary>
   /// Mixed response containing both text and structured data
   /// </summary>
-  public static readonly ChatResponseType Mixed = new(nameof(Mixed), 2);
+  public static readonly ChatResponseType Mixed = new(nameof(Mixed), 3);
 
   private ChatResponseType(string name, int value) : base(name, value)
   {

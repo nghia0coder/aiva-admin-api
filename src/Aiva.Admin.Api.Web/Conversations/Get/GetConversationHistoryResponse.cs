@@ -1,3 +1,5 @@
+﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+
 namespace Aiva.Admin.Api.Web.Conversations.Get;
 
 public record GetConversationHistoryResponse(
@@ -10,16 +12,19 @@ public record GetConversationHistoryResponse(
     PaginationInfo? Pagination = null);
 
 public record ChatMessageRecord(
-    Guid Id,
-    string Role,           // "system", "user", "assistant" - OpenAI standard
-    string Content,
-    DateTime CreatedAt,
-    MessageMetadata? Metadata = null)
+Guid Id,
+string Role,           // "system", "user", "assistant" - OpenAI standard
+string Content,
+DateTime CreatedAt,
+MessageMetadata? Metadata = null,
+ChatResponseType? ResponseType = null,
+object? StructuredData = null)
 {
   // Computed properties for FE convenience
   public bool IsUser => Role == "user";
   public bool IsAssistant => Role == "assistant";
   public bool IsSystem => Role == "system";
+  public bool HasStructuredData => ResponseType == ChatResponseType.Structured && StructuredData != null;
   public string DisplayRole => Role.ToTitleCase();
   public string TimeAgo => FormatTimeAgo(CreatedAt);
 

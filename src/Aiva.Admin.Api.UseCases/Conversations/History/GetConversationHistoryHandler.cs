@@ -1,5 +1,6 @@
-namespace Aiva.Admin.Api.UseCases.Conversations.History;
+﻿namespace Aiva.Admin.Api.UseCases.Conversations.History;
 
+using Core.Commons.Models;
 using Core.ConversationAggregate;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
@@ -94,7 +95,9 @@ public class GetConversationHistoryHandler(
             NormalizeRole(m.Role.Name),
             ProcessContentForDisplay(m.Content, m.Role.Name),
             m.CreatedAt,
-            CreateMessageMetadata(m)))
+            CreateMessageMetadata(m),
+            NormalizeResponseType(m.ResponseType.Name),
+            MapStructuredData(m.GetStructuredData())))
         .ToList()
         .AsReadOnly();
   }
@@ -107,6 +110,14 @@ public class GetConversationHistoryHandler(
     "ai" => "assistant",        // Legacy mapping
     "bot" => "assistant",       // Legacy mapping
     _ => "assistant"            // Safe default
+  };
+
+  private static string NormalizeResponseType(string responseType) => responseType switch
+  {
+    "Text" => "text",
+    "StructuredTable" => "structured",
+    "Mixed" => "mixed",
+    _ => "text"                // Safe default
   };
 
   private static string ProcessContentForDisplay(string content, string role)
@@ -152,5 +163,45 @@ public class GetConversationHistoryHandler(
     // Rough estimation: ~4 characters per token for English
     // More sophisticated tokenization can be added later
     return (int)Math.Ceiling(content.Length / 4.0);
+  }
+
+  private static TableDataDTO? MapStructuredData(TableData? structuredData)
+  {
+    if (structuredData == null)
+      return null;
+
+    return new TableDataDTO(
+        new TableMetadataDTO(
+            structuredData.Metadata.Title,
+            structuredData.Metadata.Description,
+            structuredData.Metadata.TotalCount,
+            structuredData.Metadata.DisplayedCount),
+        structuredData.Columns.Select(c => new TableColumnDTO(
+            c.Key,
+            c.Label,
+            c.Type.ToString(),
+            c.Sortable,
+            c.Filterable)).ToList(),
+        structuredData.Rows.Select(r => new TableRowDTO(
+            r.Id,
+            r.Cells,
+            r.Actions.Select(a => new ActionMetadataDTO(
+                a.Type.ToString(),
+                a.Label,
+                a.Icon,
+                a.Endpoint,
+                a.Method,
+                a.Params,
+                a.IsDisabled,
+                a.DisabledReason)).ToList())).ToList(),
+        structuredData.GlobalActions.Select(a => new ActionMetadataDTO(
+            a.Type.ToString(),
+            a.Label,
+            a.Icon,
+            a.Endpoint,
+            a.Method,
+            a.Params,
+            a.IsDisabled,
+            a.DisabledReason)).ToList());
   }
 }

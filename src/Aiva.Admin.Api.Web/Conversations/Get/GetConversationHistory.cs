@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
 using Aiva.Admin.Api.UseCases.Conversations; // Correct full namespace
 using Aiva.Admin.Api.UseCases.Conversations.History;
 
@@ -86,7 +86,9 @@ public class GetConversationHistory(IMediator mediator)
                 m.Metadata.Model,
                 m.Metadata.IsEdited,
                 m.Metadata.EditedAt,
-                MapMessageStatus(m.Metadata.Status)) : null
+                MapMessageStatus(m.Metadata.Status)) : null,
+            MapResponseType(m.ResponseType),
+            m.StructuredData
         )).ToList();
 
         // Map conversation metadata
@@ -143,5 +145,14 @@ public class GetConversationHistory(IMediator mediator)
         "archived" => ConversationStatus.Archived,
         "deleted" => ConversationStatus.Deleted,
         _ => ConversationStatus.Active
+    };
+
+    private static ChatResponseType MapResponseType(string? responseType) => responseType?.ToLowerInvariant() switch
+    {
+        "text" => ChatResponseType.Text,
+        "structured" => ChatResponseType.Structured,
+        "structuredtable" => ChatResponseType.StructuredTable,
+        "mixed" => ChatResponseType.Mixed,
+        _ => ChatResponseType.Text
     };
 }
