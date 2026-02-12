@@ -1,4 +1,4 @@
-using Aiva.Admin.Api.Core.ConversationAggregate;
+﻿using Aiva.Admin.Api.Core.ConversationAggregate;
 
 namespace Aiva.Admin.Api.UseCases.Conversations;
 
@@ -16,7 +16,7 @@ public record ChatMessageDTO(
     DateTime CreatedAt,
     MessageMetadataDTO? Metadata = null,
     string ResponseType = "text",
-    TableDataDTO? StructuredData = null);
+    object? StructuredData = null);
 
 public record MessageMetadataDTO(
     int TokenCount,

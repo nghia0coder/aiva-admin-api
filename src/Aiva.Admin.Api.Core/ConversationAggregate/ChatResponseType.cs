@@ -28,6 +28,11 @@ public sealed class ChatResponseType : SmartEnum<ChatResponseType>
   /// </summary>
   public static readonly ChatResponseType Mixed = new(nameof(Mixed), 3);
 
+  /// <summary>
+  /// Response containing chart data with text and markdown table
+  /// </summary>
+  public static readonly ChatResponseType Chart = new(nameof(Chart), 4);
+
   private ChatResponseType(string name, int value) : base(name, value)
   {
   }

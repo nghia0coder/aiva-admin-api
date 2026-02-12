@@ -2,6 +2,7 @@
 
 using Core.Commons.Models;
 using Core.ConversationAggregate;
+using Core.ConversationAggregate.DTOs;
 using Core.ConversationAggregate.Specifications;
 using Core.Interfaces;
 
@@ -97,7 +98,7 @@ public class GetConversationHistoryHandler(
             m.CreatedAt,
             CreateMessageMetadata(m),
             NormalizeResponseType(m.ResponseType.Name),
-            MapStructuredData(m.GetStructuredData())))
+            MapStructuredData(m)))
         .ToList()
         .AsReadOnly();
   }
@@ -117,6 +118,7 @@ public class GetConversationHistoryHandler(
     "Text" => "text",
     "StructuredTable" => "structured",
     "Mixed" => "mixed",
+    "Chart" => "chart",
     _ => "text"                // Safe default
   };
 
@@ -165,43 +167,65 @@ public class GetConversationHistoryHandler(
     return (int)Math.Ceiling(content.Length / 4.0);
   }
 
-  private static TableDataDTO? MapStructuredData(TableData? structuredData)
+  private static object? MapStructuredData(ChatMessage message)
   {
-    if (structuredData == null)
-      return null;
+    // Handle chart data
+    if (message.ResponseType == ChatResponseType.Chart)
+    {
+      var chartData = message.GetChartData();
+      if (chartData != null)
+      {
+        return new
+        {
+          Type = "chart",
+          TextResponse = chartData.TextResponse,
+          MarkdownTable = chartData.MarkdownTable,
+          HasChart = chartData.HasChart,
+          ChartConfig = chartData.ChartConfig,
+          ChartType = chartData.ChartType
+        };
+      }
+    }
 
-    return new TableDataDTO(
-        new TableMetadataDTO(
-            structuredData.Metadata.Title,
-            structuredData.Metadata.Description,
-            structuredData.Metadata.TotalCount,
-            structuredData.Metadata.DisplayedCount),
-        structuredData.Columns.Select(c => new TableColumnDTO(
-            c.Key,
-            c.Label,
-            c.Type.ToString(),
-            c.Sortable,
-            c.Filterable)).ToList(),
-        structuredData.Rows.Select(r => new TableRowDTO(
-            r.Id,
-            r.Cells,
-            r.Actions.Select(a => new ActionMetadataDTO(
-                a.Type.ToString(),
-                a.Label,
-                a.Icon,
-                a.Endpoint,
-                a.Method,
-                a.Params,
-                a.IsDisabled,
-                a.DisabledReason)).ToList())).ToList(),
-        structuredData.GlobalActions.Select(a => new ActionMetadataDTO(
-            a.Type.ToString(),
-            a.Label,
-            a.Icon,
-            a.Endpoint,
-            a.Method,
-            a.Params,
-            a.IsDisabled,
-            a.DisabledReason)).ToList());
+    // Handle table data
+    var structuredData = message.GetStructuredData();
+    if (structuredData != null)
+    {
+      return new TableDataDTO(
+          new TableMetadataDTO(
+              structuredData.Metadata.Title,
+              structuredData.Metadata.Description,
+              structuredData.Metadata.TotalCount,
+              structuredData.Metadata.DisplayedCount),
+          structuredData.Columns.Select(c => new TableColumnDTO(
+              c.Key,
+              c.Label,
+              c.Type.ToString(),
+              c.Sortable,
+              c.Filterable)).ToList(),
+          structuredData.Rows.Select(r => new TableRowDTO(
+              r.Id,
+              r.Cells,
+              r.Actions.Select(a => new ActionMetadataDTO(
+                  a.Type.ToString(),
+                  a.Label,
+                  a.Icon,
+                  a.Endpoint,
+                  a.Method,
+                  a.Params,
+                  a.IsDisabled,
+                  a.DisabledReason)).ToList())).ToList(),
+          structuredData.GlobalActions.Select(a => new ActionMetadataDTO(
+              a.Type.ToString(),
+              a.Label,
+              a.Icon,
+              a.Endpoint,
+              a.Method,
+              a.Params,
+              a.IsDisabled,
+              a.DisabledReason)).ToList());
+    }
+
+    return null;
   }
 }

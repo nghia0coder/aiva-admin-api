@@ -60,6 +60,7 @@ ILogger<StreamChatHandler> logger)
 
       var response = new StreamChatResponse();
       string finalAssistantMessage = responseAnswer;
+      ChartMessageData? chartMessageData = null;
 
       if (sqlQueryResult.IsSuccess && sqlQueryResult.Value.Any())
       {
@@ -98,6 +99,16 @@ ILogger<StreamChatHandler> logger)
           response.HasChart = true;
           response.ChartConfig = chartConfig;
           response.ChartType = cognitiveOutputDto.ChartType;
+
+          // Prepare chart data for storage
+          chartMessageData = new ChartMessageData
+          {
+            TextResponse = response.TextResponse,
+            MarkdownTable = markdownTable,
+            HasChart = true,
+            ChartConfig = chartConfig,
+            ChartType = cognitiveOutputDto.ChartType
+          };
         }
 
         // Create comprehensive response message for conversation history
@@ -120,8 +131,13 @@ ILogger<StreamChatHandler> logger)
         response.TextResponse = responseAnswer;
       }
 
-      // Save single comprehensive assistant message
-      conversation.AddMessage(ChatRole.Assistant, finalAssistantMessage);
+      // Save comprehensive assistant message with chart data if available
+      var assistantMessage = conversation.AddMessage(ChatRole.Assistant, finalAssistantMessage);
+
+      if (chartMessageData != null)
+      {
+        assistantMessage.SetChartResponse(chartMessageData);
+      }
 
       if (conversation.IsReadyForTitleGeneration())
       {
