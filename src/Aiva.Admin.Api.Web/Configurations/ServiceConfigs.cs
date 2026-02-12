@@ -5,6 +5,7 @@ namespace Aiva.Admin.Api.Web.Configurations;
 
 using Infrastructure.Configuration;
 using Web.Services.Realtime;
+using Web.Services.Streaming;
 using Core.Interfaces;
 using Infrastructure;
 using Infrastructure.Email;
@@ -28,6 +29,7 @@ public static class ServiceConfigs
     services.AddScoped<ICurrentUserService, CurrentUserService>();
     services.AddScoped<IClaimsTransformation, UserClaimsTransformation>();
     services.AddScoped<IRealtimeNotificationService, SignalRNotificationService>();
+    services.AddScoped<IStreamingService, StreamingService>();
 
     if (builder.Environment.IsDevelopment())
     {

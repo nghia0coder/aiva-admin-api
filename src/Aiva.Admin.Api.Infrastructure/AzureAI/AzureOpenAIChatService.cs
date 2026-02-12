@@ -9,8 +9,8 @@ using OpenAI.Chat;
 namespace Aiva.Admin.Api.Infrastructure.AzureAI;
 
 using Configuration;
-using Core.ConversationAggregate;
 using Core.Interfaces;
+using ChatRole = Core.ConversationAggregate.ChatRole;
 
 public sealed class AzureOpenAIChatService : IChatCompletionService
 {
@@ -150,5 +150,50 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
         _ => throw new ArgumentException($"Unknown chat role: {m.Role.Name}")
       };
     }).ToList();
+  }
+
+  public async Task<Result<string>> GetCompletionAsync(string system, string message, CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var messages = new List<ChatMessage>();
+      if (!string.IsNullOrEmpty(system))
+      {
+        messages.Add(new SystemChatMessage(system));
+      }
+      if (!string.IsNullOrEmpty(message))
+      {
+        messages.Add(new UserChatMessage(message));
+      }
+
+      var options = new ChatCompletionOptions
+      {
+        MaxOutputTokenCount = _appSettings.AzureAI.MaxTokens,
+        Temperature = _appSettings.AzureAI.Temperature
+      };
+
+      ClientResult<ChatCompletion> response = await _chatClient.CompleteChatAsync(
+            messages,
+            options,
+            cancellationToken);
+
+      var content = response.Value.Content[0].Text;
+
+      _logger.LogInformation(
+          "Chat completion successful. Tokens used: {TotalTokens}",
+          response.Value.Usage.TotalTokenCount);
+
+      return Result.Success(content);
+    }
+    catch (ClientResultException ex)
+    {
+      _logger.LogError(ex, "Azure OpenAI API error during chat completion");
+      return Result.Error($"AI service error: {ex.Message}");
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, "Unexpected error during chat completion");
+      return Result.Error("An unexpected error occurred while processing your request.");
+    }
   }
 }

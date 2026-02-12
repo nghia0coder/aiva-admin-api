@@ -17,6 +17,18 @@ public interface IChatCompletionService
       IReadOnlyList<ChatMessage> messages,
       CancellationToken cancellationToken = default);
 
+
+  /// <summary>
+  /// Sends a conversation and gets a complete AI response
+  /// </summary>
+  /// <param name="messages">The conversation history</param>
+  /// <param name="cancellationToken">Cancellation token</param>
+  /// <returns>The AI assistant's response</returns>
+  Task<Result<string>> GetCompletionAsync(
+      string system,
+      string messages,
+      CancellationToken cancellationToken = default);
+
   /// <summary>
   /// Streams the AI response as it's generated (for real-time UI updates)
   /// </summary>

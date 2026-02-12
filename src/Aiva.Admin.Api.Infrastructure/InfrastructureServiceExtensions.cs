@@ -14,6 +14,7 @@ using Embedding;
 using Formatting;
 using Microsoft.Extensions.Caching.Memory;
 using Retrieval;
+using Services;
 using TextExtraction;
 using TextExtraction.Extractors;
 using UseCases.Contributors.List;
@@ -147,13 +148,18 @@ public static class InfrastructureServiceExtensions
 
     services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>))
            .AddScoped(typeof(IReadRepository<>), typeof(EfRepository<>))
+           .AddScoped<ISqlExecutorService, SqlExecutorService>()
            .AddScoped<IGetFoldersByStorageQueryService, GetFoldersByStorageQueryService>()
            .AddScoped<IGetFolderContentsQueryService, GetFolderContentsQueryService>()
            .AddScoped<IListFoldersQueryService, ListFoldersQueryService>()
            .AddScoped<IListContributorsQueryService, ListContributorsQueryService>()
            .AddScoped<IListStoragesQueryService, ListStoragesQueryService>()
            .AddScoped<IDeleteContributorService, DeleteContributorService>()
-           .AddScoped<IConversationMessageQueryService, ConversationMessageQueryService>();
+           .AddScoped<IConversationMessageQueryService, ConversationMessageQueryService>()
+           .AddScoped<IChartGenerationService, ChartJsGenerationService>() // Changed from ChartGenerationService to ChartJsGenerationService
+           .AddScoped<IPromptTemplateService, PromptTemplateService>()
+           .AddScoped<IDataFormatterService, DataFormatterService>()
+           .AddScoped<IChatHistoryService, ChatHistoryService>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

@@ -93,4 +93,21 @@ public class Conversation : AuditableEntity<Conversation, ConversationId>, IAggr
     MarkAsDeleted();
     RegisterDomainEvent(new ConversationDeletedEvent(Id, UserId));
   }
+
+  /// <summary>
+  /// Get recent messages for chat context, ordered by creation time (oldest first)
+  /// </summary>
+  /// <param name="count">Maximum number of messages to return</param>
+  /// <returns>Recent messages ordered from oldest to newest</returns>
+  public IReadOnlyList<ChatMessage> GetRecentMessages(int count = 8)
+  {
+    if (count <= 0) return [];
+
+    return _messages
+        .OrderByDescending(m => m.CreatedAt)
+        .Take(count)
+        .OrderBy(m => m.CreatedAt)
+        .ToList()
+        .AsReadOnly();
+  }
 }
