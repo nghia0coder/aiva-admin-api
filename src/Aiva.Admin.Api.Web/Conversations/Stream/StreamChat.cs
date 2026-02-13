@@ -71,7 +71,7 @@ public class StreamChat(
 
   private async Task HandleDataAssistantFlow(StreamChatRequest request, CancellationToken ct)
   {
-    var command = new StreamChatCommand(request.ConversationId, request.Message);
+    var command = new StreamDataChatCommand(request.ConversationId, request.Message);
     var result = await mediator.Send(command, ct);
 
     if (result.IsSuccess)
@@ -142,15 +142,55 @@ public class StreamChat(
 
   private async Task HandleShoppingAssistantFlow(StreamChatRequest request, CancellationToken ct)
   {
-    // TODO: Implement ShoppingAssistant flow
-    // This will handle customer queries and provide shopping assistance
+    var command = new StreamShoppingChatCommand(request.ConversationId, request.Message);
+    var result = await mediator.Send(command, ct);
 
-    await streamingService.SendEventAsync(HttpContext, "message", new
+    if (result.IsSuccess)
     {
-      content = "ShoppingAssistant flow is not implemented yet. Coming soon!",
-      type = "text"
-    }, ct);
+      var response = result.Value;
 
-    await streamingService.SendEventAsync(HttpContext, "done", new { complete = true }, ct);
+      // Stream text response
+      await streamingService.SendEventAsync(HttpContext, "message", new
+      {
+        content = response.TextResponse,
+        type = "text"
+      }, ct);
+
+      // Stream product recommendations if available
+      if (response.HasProducts && response.ProductRecommendations?.Any() == true)
+      {
+        await streamingService.SendEventAsync(HttpContext, "products", new
+        {
+          products = response.ProductRecommendations,
+          type = "product-list"
+        }, ct);
+      }
+
+      // Stream price comparison if available
+      if (response.PriceComparison != null)
+      {
+        await streamingService.SendEventAsync(HttpContext, "price-comparison", new
+        {
+          comparison = response.PriceComparison,
+          type = "price-table"
+        }, ct);
+      }
+
+      // Stream shopping advice if available
+      if (!string.IsNullOrEmpty(response.ShoppingAdvice))
+      {
+        await streamingService.SendEventAsync(HttpContext, "advice", new
+        {
+          content = response.ShoppingAdvice,
+          type = "advice"
+        }, ct);
+      }
+
+      await streamingService.SendEventAsync(HttpContext, "done", new { complete = true }, ct);
+    }
+    else
+    {
+      await streamingService.SendEventAsync(HttpContext, "error", new { message = result.ValidationErrors?.FirstOrDefault() }, ct);
+    }
   }
 }
