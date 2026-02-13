@@ -44,5 +44,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         .HasConversion(
             x => x.Value,
             x => UserStatus.FromValue(x));
+
+    builder.Property(e => e.Role)
+        .HasConversion(
+            x => x.Value,
+            x => UserRole.FromValue(x));
   }
 }

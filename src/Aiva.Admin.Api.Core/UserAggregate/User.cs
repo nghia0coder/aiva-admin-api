@@ -35,6 +35,11 @@ public class User : AuditableEntity<User, UserId>, IAggregateRoot
   public UserStatus Status { get; private set; } = UserStatus.Active;
 
   /// <summary>
+  /// User role in the system (Admin or Customer)
+  /// </summary>
+  public UserRole Role { get; private set; } = UserRole.Customer;
+
+  /// <summary>
   /// Last successful login timestamp
   /// </summary>
   public DateTime? LastLoginAt { get; private set; }
@@ -53,12 +58,14 @@ public class User : AuditableEntity<User, UserId>, IAggregateRoot
       string email,
       string displayName,
       string? firstName = null,
-      string? lastName = null)
+      string? lastName = null,
+      UserRole? role = null)
   {
     var user = new User(azureAdObjectId, email, displayName)
     {
       FirstName = firstName,
-      LastName = lastName
+      LastName = lastName,
+      Role = role ?? UserRole.Customer
     };
     return user;
   }
@@ -81,6 +88,12 @@ public class User : AuditableEntity<User, UserId>, IAggregateRoot
   public User Deactivate()
   {
     Status = UserStatus.Inactive;
+    return this;
+  }
+
+  public User ChangeRole(UserRole newRole)
+  {
+    Role = newRole;
     return this;
   }
 }
