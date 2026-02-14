@@ -2,7 +2,7 @@
 
 public static class PromptTemplates
 {
-    public const string MessageTemplateForGenerateQuestion = @"Based on the <new_question> and the <chat_history>, your task is to generate a standalone question. You ALWAYS follow the guidelines below to do your tasks:
+  public const string MessageTemplateForGenerateQuestion = @"Based on the <new_question> and the <chat_history>, your task is to generate a standalone question. You ALWAYS follow the guidelines below to do your tasks:
       <guidelines_for_standalone>
       - If the <new_question> is not related to the <chat_history>, return the <new_question> as the standalone question. Just generate the standalone question without commentary.
       - Analyze to see if the <new_question> is related to the <chat_history>, if so create a standalone question that fully covers the content and context of both the <chat_history> and the <new_question>. If the <new_question> is not related to the <chat_history>, simply use the content of the <new_question> to create the standalone question without relying on the <chat_history>.
@@ -20,7 +20,7 @@ public static class PromptTemplates
       @{chat_input}
       </new_question>";
 
-    public const string SystemTemplateCognitiveOutput = @"You are a data analysis assistant that helps users understand their data through both textual summaries and appropriate visualizations.
+  public const string SystemTemplateCognitiveOutput = @"You are a data analysis assistant that helps users understand their data through both textual summaries and appropriate visualizations.
 
           Given the question, SQL query and dataset, provide a JSON response with:
 
@@ -41,7 +41,7 @@ public static class PromptTemplates
 
           Return only valid JSON format.";
 
-    public const string MessageTemplateCognitiveOutput = @"Question: @{standalone_question}
+  public const string MessageTemplateCognitiveOutput = @"Question: @{standalone_question}
                                         SQL Query: @{sql_query}
                                         Dataset Info:
                                         - Row count: @{row_count}
@@ -50,4 +50,48 @@ public static class PromptTemplates
                                         Current datetime: @{system_time}
 
                                         Analyze if this data would benefit from visualization beyond the text summary.";
+
+  public const string GuidelinesForShoppingStandalone = @"Based on the <new_question>, 
+the <chat_history>, and <additional_user_data>, your task is to generate a queryString and a standaloneQuestion. Your response format is always a JSON object described in the <returned_format>. You MUST ALWAYS follow the guidelines below to do your tasks:
+    <guidelines_for_standalone>
+    - Your goal is to create a standaloneQuestion that includes the full meaning and context of the user's intent, even if they did not explicitly restate it.
+    - If the <chat_history> is empty, simply return the <new_question> as the standalone question.
+    - If the <new_question> is related to the <chat_history>, always synthesize a full standalone question that incorporates these past contexts.
+    - Do not answer the <new_question>. Your only task is to rephrase it into a full, self-contained question.
+    </guidelines_for_standalone>
+
+    <guidelines_for_querystring>
+    - Generate the queryString that contains all distinct and relevant keyword phrases to search from the knowledge base, separated by semicolons.
+    - Each keyword should be clear, concise, and unique in meaning (no synonyms or repetition).
+    - queryString should include keywords related to the products in [additional_user_data], as well as any action-oriented terms in <new_question> (e.g., thanh toán, mua hàng).
+    - Do not repeat the standaloneQuestion content in the queryString.
+    </guidelines_for_querystring>
+
+    <returned_format>
+    {
+	    ""queryString"": ""search string 1; search string 2; search string 3"",
+	    ""standaloneQuestion"": ""standalone question""
+    }
+    </returned_format>
+
+    <additional_information>
+    Current datetime: [system_time]
+    </additional_information>
+
+    <chat_history>
+      @{chat_history}
+    </chat_history>
+
+    <new_question>
+     @{chat_input}
+    </new_question>""
+
+    <full_name>
+    @{full_name}
+    </full_name>
+
+    <additional_user_data>
+    @{additional_user_data}
+    </additional_user_data>
+    ";
 }

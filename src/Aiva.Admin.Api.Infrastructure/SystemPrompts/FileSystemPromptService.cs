@@ -1,4 +1,4 @@
-using Ardalis.Result;
+﻿using Ardalis.Result;
 
 namespace Aiva.Admin.Api.Infrastructure.SystemPrompts;
 
@@ -22,13 +22,14 @@ public sealed class FileSystemPromptService : ISystemPromptService
     { "customer-support", "aiva_customer_assistant_prompt.md" },
     { "internal-assistant", "system_prompt.md" },
     { "data-assistant", "DATA_ASSISTANT_SYSTEM_PROMPT.md" },
+    { "shopping-assistant", "SHOPPING_ASSISTANT_SYSTEM_PROMPT.md" }
   };
 
   public FileSystemPromptService(
       ILogger<FileSystemPromptService> logger)
   {
     _logger = logger;
-    
+
     // Get the base directory (solution root)
     // When running, the working directory is typically src/Aiva.Admin.Api.Web/bin/Debug/net10.0
     // We need to go up to the solution root, then into prompts/
@@ -63,7 +64,7 @@ public sealed class FileSystemPromptService : ISystemPromptService
       // From bin/Debug/net10.0 -> go up to solution root
       var solutionRoot = Path.GetFullPath(
           Path.Combine(_baseDirectory, "..", "..", "..", "..", ".."));
-      
+
       var promptsPath = Path.Combine(solutionRoot, "prompts", fileName);
 
       if (!File.Exists(promptsPath))

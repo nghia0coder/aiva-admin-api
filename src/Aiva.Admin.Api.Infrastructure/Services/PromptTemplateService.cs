@@ -7,35 +7,36 @@ namespace Aiva.Admin.Api.Infrastructure.Services;
 
 public class PromptTemplateService : IPromptTemplateService
 {
-    public string ReplacePromptByKey(string prompt, ReplacePromptDto replacePromptDto)
-    {
-        if (string.IsNullOrEmpty(prompt)) return string.Empty;
-        
-        var result = new StringBuilder(prompt);
+  public string ReplacePromptByKey(string prompt, ReplacePromptDto replacePromptDto)
+  {
+    if (string.IsNullOrEmpty(prompt)) return string.Empty;
 
-        result.Replace(MessageReplaceKeys.ChatInput, replacePromptDto.ChatInput ?? string.Empty);
-        result.Replace(MessageReplaceKeys.ChatHistory, replacePromptDto.ChatHistory ?? string.Empty);
-        result.Replace(MessageReplaceKeys.SqlQuery, replacePromptDto.SqlQuery ?? string.Empty);
-        result.Replace(MessageReplaceKeys.ResultData, replacePromptDto.ResultData ?? string.Empty);
-        result.Replace(MessageReplaceKeys.StandaloneQuestion, replacePromptDto.StandaloneQuestion ?? string.Empty);
-        result.Replace(MessageReplaceKeys.SystemTime, DateTime.UtcNow.AddHours(7).ToString("yyyy-MM-dd HH:mm:ss"));
-        result.Replace(MessageReplaceKeys.RowCount, replacePromptDto.RowCount.ToString());
-        result.Replace(MessageReplaceKeys.ColumnNames, replacePromptDto.ColumnNames ?? string.Empty);
-        
-        return result.ToString();
-    }
+    var result = new StringBuilder(prompt);
 
-    public string BuildEnhancedPrompt(List<Dictionary<string, object>> sqlResult, ReplacePromptDto dto)
-    {
-        dto.RowCount = sqlResult.Count;
-        dto.ColumnNames = sqlResult.Any() ? string.Join(", ", sqlResult[0].Keys) : "";
+    result.Replace(MessageReplaceKeys.ChatInput, replacePromptDto.ChatInput ?? string.Empty);
+    result.Replace(MessageReplaceKeys.ChatHistory, replacePromptDto.ChatHistory ?? string.Empty);
+    result.Replace(MessageReplaceKeys.SqlQuery, replacePromptDto.SqlQuery ?? string.Empty);
+    result.Replace(MessageReplaceKeys.ResultData, replacePromptDto.ResultData ?? string.Empty);
+    result.Replace(MessageReplaceKeys.StandaloneQuestion, replacePromptDto.StandaloneQuestion ?? string.Empty);
+    result.Replace(MessageReplaceKeys.SystemTime, DateTime.UtcNow.AddHours(7).ToString("yyyy-MM-dd HH:mm:ss"));
+    result.Replace(MessageReplaceKeys.RowCount, replacePromptDto.RowCount.ToString());
+    result.Replace(MessageReplaceKeys.ColumnNames, replacePromptDto.ColumnNames ?? string.Empty);
+    result.Replace(MessageReplaceKeys.FullName, replacePromptDto.FullName ?? string.Empty);
 
-        var result = new StringBuilder(PromptTemplates.MessageTemplateCognitiveOutput);
+    return result.ToString();
+  }
 
-        // Add new replacements
-        result.Replace("@{row_count}", dto.RowCount.ToString());
-        result.Replace("@{column_names}", dto.ColumnNames ?? "");
+  public string BuildEnhancedPrompt(List<Dictionary<string, object>> sqlResult, ReplacePromptDto dto)
+  {
+    dto.RowCount = sqlResult.Count;
+    dto.ColumnNames = sqlResult.Any() ? string.Join(", ", sqlResult[0].Keys) : "";
 
-        return ReplacePromptByKey(result.ToString(), dto);
-    }
+    var result = new StringBuilder(PromptTemplates.MessageTemplateCognitiveOutput);
+
+    // Add new replacements
+    result.Replace("@{row_count}", dto.RowCount.ToString());
+    result.Replace("@{column_names}", dto.ColumnNames ?? "");
+
+    return ReplacePromptByKey(result.ToString(), dto);
+  }
 }
