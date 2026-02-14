@@ -159,7 +159,10 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IChartGenerationService, ChartJsGenerationService>() // Changed from ChartGenerationService to ChartJsGenerationService
            .AddScoped<IPromptTemplateService, PromptTemplateService>()
            .AddScoped<IDataFormatterService, DataFormatterService>()
-           .AddScoped<IChatHistoryService, ChatHistoryService>();
+           .AddScoped<IChatHistoryService, ChatHistoryService>()
+           .AddScoped<IJsonExtractionService, JsonExtractionService>()
+           .AddScoped<IStandaloneQuestionService, StandaloneQuestionService>()
+           .AddScoped<IShoppingChatService, ShoppingChatService>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

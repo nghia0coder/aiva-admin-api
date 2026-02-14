@@ -55,7 +55,7 @@ public class StreamChat(
       else if (currentUser.Role == UserRole.Customer)
       {
         // Handle Customer flow (ShoppingAssistant)
-        await HandleShoppingAssistantFlow(request, ct);
+        await HandleShoppingAssistantFlow(request, FullName ?? "User", ct);
       }
       else
       {
@@ -140,9 +140,9 @@ public class StreamChat(
     }
   }
 
-  private async Task HandleShoppingAssistantFlow(StreamChatRequest request, CancellationToken ct)
+  private async Task HandleShoppingAssistantFlow(StreamChatRequest request, string userName, CancellationToken ct)
   {
-    var command = new StreamShoppingChatCommand(request.ConversationId, request.Message);
+    var command = new StreamShoppingChatCommand(request.ConversationId, userName, request.Message);
     var result = await mediator.Send(command, ct);
 
     if (result.IsSuccess)
@@ -155,36 +155,6 @@ public class StreamChat(
         content = response.TextResponse,
         type = "text"
       }, ct);
-
-      // Stream product recommendations if available
-      if (response.HasProducts && response.ProductRecommendations?.Any() == true)
-      {
-        await streamingService.SendEventAsync(HttpContext, "products", new
-        {
-          products = response.ProductRecommendations,
-          type = "product-list"
-        }, ct);
-      }
-
-      // Stream price comparison if available
-      if (response.PriceComparison != null)
-      {
-        await streamingService.SendEventAsync(HttpContext, "price-comparison", new
-        {
-          comparison = response.PriceComparison,
-          type = "price-table"
-        }, ct);
-      }
-
-      // Stream shopping advice if available
-      if (!string.IsNullOrEmpty(response.ShoppingAdvice))
-      {
-        await streamingService.SendEventAsync(HttpContext, "advice", new
-        {
-          content = response.ShoppingAdvice,
-          type = "advice"
-        }, ct);
-      }
 
       await streamingService.SendEventAsync(HttpContext, "done", new { complete = true }, ct);
     }

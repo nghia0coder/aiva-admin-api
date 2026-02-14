@@ -19,10 +19,15 @@ public abstract class AuthenticatedEndpoint<TRequest, TResponse> : Endpoint<TReq
   /// </summary>
   public ICurrentUserService CurrentUserService { get; set; } = null!;
 
-  /// <summary>
+  /// <summary> 
   /// Gets the current authenticated user's ID. Returns null if not authenticated.
   /// </summary>
   protected UserId? CurrentUserId => CurrentUserService.UserId;
+
+  /// <summary>
+  /// Get the current user full name. Returns null if not authenticated.
+  /// </summary>
+  public string? FullName => CurrentUserService.DisplayName;
 
   /// <summary>
   /// Gets the current authenticated user's ID. Throws if not authenticated.

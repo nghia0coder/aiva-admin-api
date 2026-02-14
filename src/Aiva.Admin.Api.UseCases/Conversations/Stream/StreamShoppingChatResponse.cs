@@ -3,15 +3,7 @@
 public class StreamShoppingChatResponse
 {
   public string TextResponse { get; set; } = string.Empty;
-  
-  // Shopping-specific properties
-  public List<ProductRecommendation>? ProductRecommendations { get; set; }
-  public string? ShoppingAdvice { get; set; }
-  public PriceComparison? PriceComparison { get; set; }
   public bool HasProducts { get; set; }
-  
-  // TODO: Define these models when implementing
-  // For now, using placeholder classes
 }
 
 // TODO: Implement these models based on your business requirements
