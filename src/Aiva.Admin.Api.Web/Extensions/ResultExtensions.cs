@@ -121,4 +121,27 @@ public static class ResultExtensions
   {
     return TypedResults.Ok(mapResponse(result.Value));
   }
+
+  /// <summary>
+  /// Maps Result to ProblemHttpResult for generic error handling
+  /// </summary>
+  public static ProblemHttpResult ToProblemResult<TValue>(
+    this Result<TValue> result)
+  {
+    return result.Status switch
+    {
+      ResultStatus.Invalid => TypedResults.Problem(
+        title: "Validation failed",
+        detail: string.Join("; ", result.ValidationErrors.Select(e => e.ErrorMessage)),
+        statusCode: StatusCodes.Status400BadRequest),
+      ResultStatus.NotFound => TypedResults.Problem(
+        title: "Resource not found",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status404NotFound),
+      _ => TypedResults.Problem(
+        title: "Request failed",
+        detail: string.Join("; ", result.Errors),
+        statusCode: StatusCodes.Status400BadRequest)
+    };
+  }
 }
