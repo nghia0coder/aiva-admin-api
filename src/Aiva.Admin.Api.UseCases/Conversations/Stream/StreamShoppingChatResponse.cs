@@ -4,6 +4,8 @@ public class StreamShoppingChatResponse
 {
   public string TextResponse { get; set; } = string.Empty;
   public bool HasProducts { get; set; }
+  public List<string> ToolsExecuted { get; set; } = new();
+  public bool HasToolsExecuted => ToolsExecuted.Any();
 }
 
 // TODO: Implement these models based on your business requirements

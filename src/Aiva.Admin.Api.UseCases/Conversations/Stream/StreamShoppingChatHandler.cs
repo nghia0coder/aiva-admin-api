@@ -1,4 +1,4 @@
-﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Specifications;
 using Aiva.Admin.Api.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -32,6 +32,7 @@ public class StreamShoppingChatHandler(
           conversation,
           request.Message,
           request.UserName,
+          request.AdditionalUserData,
           cancellationToken);
 
       if (!shoppingResult.IsSuccess)
@@ -77,6 +78,7 @@ public class StreamShoppingChatHandler(
     {
       TextResponse = result.TextResponse,
       HasProducts = result.HasProducts,
+      ToolsExecuted = result.ToolsExecuted
     };
   }
 

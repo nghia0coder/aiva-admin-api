@@ -162,7 +162,32 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IChatHistoryService, ChatHistoryService>()
            .AddScoped<IJsonExtractionService, JsonExtractionService>()
            .AddScoped<IStandaloneQuestionService, StandaloneQuestionService>()
-           .AddScoped<IShoppingChatService, ShoppingChatService>();
+           .AddScoped<IShoppingChatService, ShoppingChatService>()
+           .AddScoped<IHtmlTableParserService, HtmlTableParserService>();
+
+
+    services.AddHttpClient<ShoppingToolService>(client =>
+    {
+      client.BaseAddress = new Uri(appSettings.ShoppingApiConfig.BaseUrl);
+      client.Timeout = TimeSpan.FromSeconds(appSettings.ShoppingApiConfig.TimeoutSeconds);
+      client.DefaultRequestHeaders.Add("User-Agent", "AIVA-Shopping-Service/1.0");
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+    {
+      // Allow self-signed certificates for development if configured
+      ServerCertificateCustomValidationCallback = appSettings.ShoppingApiConfig.AllowSelfSignedCertificates
+        ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        : null
+    });
+
+    // Register IShoppingToolService separately to use the configured HttpClient
+    services.AddScoped<IShoppingToolService>(sp =>
+    {
+      var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+      var httpClient = httpClientFactory.CreateClient(nameof(ShoppingToolService));
+      var logger = sp.GetRequiredService<ILogger<ShoppingToolService>>();
+      return new ShoppingToolService(httpClient, appSettings.ShoppingApiConfig, logger);
+    });
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 

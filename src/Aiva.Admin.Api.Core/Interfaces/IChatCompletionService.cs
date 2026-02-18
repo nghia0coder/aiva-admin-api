@@ -1,5 +1,6 @@
 ﻿namespace Aiva.Admin.Api.Core.Interfaces;
 
+using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 using ConversationAggregate;
 
 /// <summary>
@@ -38,4 +39,10 @@ public interface IChatCompletionService
   IAsyncEnumerable<Result<string>> StreamCompletionAsync(
       IReadOnlyList<ChatMessage> messages,
       CancellationToken cancellationToken = default);
+
+  Task<ChatCompletionResult> GetCompletionWithToolsAsync(
+        string systemPrompt,
+        string userPrompt,
+        IEnumerable<ToolDefinition> tools,
+        CancellationToken cancellationToken = default);
 }

@@ -153,6 +153,7 @@ Rules for Handling Complaints or Negative Feedback:
 
 1. **Product Display Format:**
    When presenting a list of products, always generate a structured HTML table. The table must follow this column order:
+   Each row must include a checkbox input with value product-id and data-quantity (default 1).
 
    Fixed columns:
    1. Select (checkbox)

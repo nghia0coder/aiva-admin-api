@@ -8,6 +8,8 @@ using OpenAI.Chat;
 
 namespace Aiva.Admin.Api.Infrastructure.AzureAI;
 
+using System.Text.Json;
+using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 using Configuration;
 using Core.Interfaces;
 using ChatRole = Core.ConversationAggregate.ChatRole;
@@ -195,5 +197,116 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
       _logger.LogError(ex, "Unexpected error during chat completion");
       return Result.Error("An unexpected error occurred while processing your request.");
     }
+  }
+
+  public async Task<ChatCompletionResult> GetCompletionWithToolsAsync(
+    string systemPrompt,
+    string userPrompt,
+    IEnumerable<ToolDefinition> tools,
+    CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var messages = new List<ChatMessage>();
+
+      if (!string.IsNullOrEmpty(systemPrompt))
+      {
+        messages.Add(new SystemChatMessage(systemPrompt));
+      }
+
+      if (!string.IsNullOrEmpty(userPrompt))
+      {
+        messages.Add(new UserChatMessage(userPrompt));
+      }
+
+      var options = new ChatCompletionOptions
+      {
+        MaxOutputTokenCount = _appSettings.AzureAI.MaxTokens,
+        Temperature = _appSettings.AzureAI.Temperature,
+        ToolChoice = ChatToolChoice.CreateAutoChoice()
+      };
+
+      // Convert ToolDefinitions to OpenAI ChatTool format
+      foreach (var toolDef in tools)
+      {
+        var chatTool = CreateChatToolFromDefinition(toolDef);
+        options.Tools.Add(chatTool);
+      }
+
+      _logger.LogDebug("Calling Azure OpenAI with {ToolCount} tools available", tools.Count());
+
+      var response = await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
+
+      var result = new ChatCompletionResult
+      {
+        FinishReason = response.Value.FinishReason.ToString()
+      };
+
+      // Check if the response contains tool calls
+      if (response.Value.ToolCalls?.Any() == true)
+      {
+        result.ToolCalls = response.Value.ToolCalls
+            .Select(MapToToolCall)
+            .ToList();
+
+        _logger.LogInformation("Received {ToolCallCount} tool calls from LLM", result.ToolCalls.Count);
+      }
+      else
+      {
+        // Regular text response
+        result.TextResponse = response.Value.Content.FirstOrDefault()?.Text ?? string.Empty;
+        _logger.LogInformation("Received text response from LLM (no tools called)");
+      }
+
+      _logger.LogInformation(
+          "Chat completion with tools successful. Tokens used: {TotalTokens}",
+          response.Value.Usage.TotalTokenCount);
+
+      return result;
+    }
+    catch (ClientResultException ex)
+    {
+      _logger.LogError(ex, "Azure OpenAI API error during chat completion with tools");
+      throw new InvalidOperationException($"AI service error: {ex.Message}", ex);
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, "Unexpected error during chat completion with tools");
+      throw;
+    }
+  }
+
+  private ChatTool CreateChatToolFromDefinition(ToolDefinition toolDefinition)
+  {
+    // Convert our ToolDefinition to OpenAI's ChatToolFunction
+    var functionDef = toolDefinition.Function;
+
+    // Serialize parameters to JSON string as required by OpenAI SDK
+    var parametersJson = JsonSerializer.Serialize(functionDef.Parameters);
+
+    var chatFunction = ChatTool.CreateFunctionTool(
+        functionName: functionDef.Name,
+        functionDescription: functionDef.Description,
+        functionParameters: BinaryData.FromString(parametersJson)
+    );
+
+    _logger.LogDebug("Created chat tool: {ToolName} - {Description}",
+        functionDef.Name, functionDef.Description);
+
+    return chatFunction;
+  }
+
+  private ToolCall MapToToolCall(ChatToolCall openAIToolCall)
+  {
+    return new ToolCall
+    {
+      Id = openAIToolCall.Id,
+      Type = "function",
+      Function = new FunctionCall
+      {
+        Name = openAIToolCall.FunctionName,
+        Arguments = openAIToolCall.FunctionArguments.ToString() // Assuming arguments are returned as JSON string
+      }
+    };
   }
 }

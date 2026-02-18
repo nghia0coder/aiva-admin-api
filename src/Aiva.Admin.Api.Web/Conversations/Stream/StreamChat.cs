@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Aiva.Admin.Api.Core.UserAggregate;
 using Aiva.Admin.Api.UseCases.Conversations.Stream;
 using Aiva.Admin.Api.Web.Common;
@@ -142,7 +142,11 @@ public class StreamChat(
 
   private async Task HandleShoppingAssistantFlow(StreamChatRequest request, string userName, CancellationToken ct)
   {
-    var command = new StreamShoppingChatCommand(request.ConversationId, userName, request.Message);
+    var command = new StreamShoppingChatCommand(
+        request.ConversationId, 
+        userName, 
+        request.Message,
+        request.AdditionalUserData);
     var result = await mediator.Send(command, ct);
 
     if (result.IsSuccess)

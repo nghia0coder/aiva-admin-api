@@ -1,4 +1,4 @@
-namespace Aiva.Admin.Api.Infrastructure.Configuration;
+﻿namespace Aiva.Admin.Api.Infrastructure.Configuration;
 
 public class AppSettings
 {
@@ -12,6 +12,7 @@ public class AppSettings
   public CorsSettings Cors { get; set; } = new();
   public AzureAISettings AzureAI { get; set; } = new();
   public EmbeddingSettings Embedding { get; set; } = new();
+  public ShoppingApiConfiguration ShoppingApiConfig { get; set; } = new();
   public VectorStoreSettings VectorStore { get; set; } = new();
   public AzureAISearchSettings AzureAISearch { get; set; } = new();
   public MailserverSettings Mailserver { get; set; } = new();
@@ -252,4 +253,23 @@ public sealed class IntentDetectionSettings
   /// Cache TTL in seconds (only used if EnableCaching = true)
   /// </summary>
   public int CacheTtlSeconds { get; set; } = 300;  // 5 minutes
+}
+
+public sealed class ShoppingApiConfiguration
+{
+  public const string SectionName = "ShoppingApiConfig";
+  public string BaseUrl { get; set; } = "http://localhost:5000";
+  public int TimeoutSeconds { get; set; } = 30;
+  public bool AllowSelfSignedCertificates { get; set; } = true;
+  public string PublicKey { get; set; } = string.Empty;
+  public string SecretKey { get; set; } = string.Empty;
+  public ShoppingApiEndpoints Endpoints { get; set; } = new();
+}
+
+public class ShoppingApiEndpoints
+{
+  public string AddToCart { get; set; } = "/odata/v1/shoppingcartitems/addtocart";
+  public string RemoveFromCart { get; set; } = "/api/cart/remove";
+  public string SearchProducts { get; set; } = "/api/products/search";
+  public string GetProductInfo { get; set; } = "/api/products/{productId}";
 }
