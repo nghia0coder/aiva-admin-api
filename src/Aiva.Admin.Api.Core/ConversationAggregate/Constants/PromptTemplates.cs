@@ -91,7 +91,7 @@ the <chat_history>, and <additional_user_data>, your task is to generate a query
     </full_name>
 
     <additional_user_data>
-    @{additional_user_data}
+        [additional_data]
     </additional_user_data>
     ";
 }

@@ -10,5 +10,7 @@ public static class MessageReplaceKeys
   public const string SystemTime = "@{system_time}";
   public const string RowCount = "@{row_count}";
   public const string ColumnNames = "@{column_names}";
-  public const string FullName = "@{full_name}";
+  public const string FullName = "[full_name]";
+  public const string AdditionalData = "[additional_data]";
+  public const string ProductData = "[product_data]";
 }

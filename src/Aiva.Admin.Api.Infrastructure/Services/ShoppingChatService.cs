@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using Aiva.Admin.Api.Core.Commons.Models;
 using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
@@ -12,8 +11,6 @@ namespace Aiva.Admin.Api.Infrastructure.Services;
 public class ShoppingChatService(
     IShoppingToolService shoppingToolService,
     IChatCompletionService chatService,
-    IRetrievalService retrievalService,
-    IRetrievalSettings retrievalSettings,
     IPromptTemplateService promptTemplateService,
     ISystemPromptService systemPromptService,
     IChatHistoryService chatHistoryService,
@@ -51,7 +48,8 @@ public class ShoppingChatService(
           {
             FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
             ChatInput = userMessage,
-            ChatHistory = chatHistory
+            ChatHistory = chatHistory,
+            AdditionalData = BuildProductDataContext(productSelectionData)
           });
 
       var standaloneQuestionResult = await chatService.GetCompletionAsync("", standaloneMessage);
@@ -79,49 +77,30 @@ public class ShoppingChatService(
         return Result.Error("No valid query string or standalone question found in the response.");
       }
 
-      // Perform document search
-      var documentSearchResult = await retrievalService.RetrieveContextAsync(
-          dataStandalone.QueryString,
-          new RetrievalOptions
-          {
-            TopK = retrievalSettings.TopK,
-            MinScore = retrievalSettings.HybridSearchMinScoreThreshold ?? retrievalSettings.MinScoreThreshold,
-            Strategy = SearchStrategy.Hybrid
-          },
+      // Check if tools are needed first (no Azure AI Search here)
+      var toolPrompt = await systemPromptService.GetActivePromptContentAsync(
+          SystemPromptKey.From("tool-selector"),
           cancellationToken);
 
-      if (!documentSearchResult.IsSuccess)
+      var toolPromptResult = promptTemplateService.ReplacePromptByKey(toolPrompt, new ReplacePromptDto
       {
-        logger.LogWarning("Document search failed for conversation {ConversationId}: {Error}",
-            conversation.Id, documentSearchResult.Errors);
-        return Result.Error($"Failed to retrieve context: {documentSearchResult?.Errors}");
-      }
-
-
-      // Get shopping assistant system prompt
-      var systemPrompt = await systemPromptService.GetActivePromptContentAsync(
-          SystemPromptKey.From("shopping-assistant"),
-          cancellationToken);
-
-      // Build context for shopping assistant
-      var shoppingContext = BuildShoppingContext(
-          dataStandalone.StandaloneQuestion,
-          documentSearchResult.Value.FormattedContext,
-          productSelectionData,
-          userName);
-
+        ProductData = BuildProductDataContext(productSelectionData)
+      });
 
       var availableTools = shoppingToolService.GetAvailableTools();
 
       var completionResult = await chatService.GetCompletionWithToolsAsync(
-                                systemPrompt,
-                                shoppingContext,
-                                availableTools,
-                                cancellationToken);
+          toolPromptResult,
+          dataStandalone.StandaloneQuestion,
+          availableTools,
+          cancellationToken);
 
-      // Get AI response
-      var responseAnswer = await chatService.GetCompletionAsync(systemPrompt, shoppingContext);
+      // Get shopping assistant system prompt template
+      var systemPromptTemplate = await systemPromptService.GetActivePromptContentAsync(
+          SystemPromptKey.From("shopping-assistant"),
+          cancellationToken);
 
+      // Process tool execution if needed
       if (completionResult.HasToolCalls)
       {
         var toolResults = await ExecuteToolCallsAsync(
@@ -129,18 +108,37 @@ public class ShoppingChatService(
             userName,
             cancellationToken);
 
-        // Get final response with tool results
-        var finalContext = $"{shoppingContext}\n\nTool Execution Results:\n{string.Join("\n", toolResults.Values)}";
-        var finalResponse = await chatService.GetCompletionAsync(systemPrompt, finalContext);
+        var systemPrompt = promptTemplateService.ReplacePromptByKey(
+          systemPromptTemplate,
+          new ReplacePromptDto
+          {
+            FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
+            ProductData = string.Join("\n", toolResults.Values)
+          });
+
+        var finalResponse = await chatService.GetCompletionAsync(systemPrompt, dataStandalone.StandaloneQuestion);
 
         return Result.Success(new ShoppingChatResult
         {
           TextResponse = finalResponse,
           HasProducts = true,
           ToolsExecuted = completionResult.ToolCalls.Select(tc => tc.Function.Name).ToList(),
-          ToolResults = toolResults
+          ToolResults = toolResults,
         });
       }
+
+      logger.LogInformation("No tools needed, using basic system prompt for conversation {ConversationId}", conversation.Id);
+
+      // Create enhanced system prompt without Azure AI Search results
+      var enhancedSystemPrompt = promptTemplateService.ReplacePromptByKey(
+          systemPromptTemplate,
+          new ReplacePromptDto
+          {
+            FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
+          });
+
+      // Get AI response without tools and without Azure AI Search
+      var responseAnswer = await chatService.GetCompletionAsync(enhancedSystemPrompt, userMessage);
 
       if (string.IsNullOrWhiteSpace(responseAnswer))
       {
@@ -208,63 +206,53 @@ public class ShoppingChatService(
     return results;
   }
 
-  private string BuildShoppingContext(
-      string standaloneQuestion,
-      string formattedContext,
-      ProductSelectionData? productSelectionData,
-      string userName)
+  private string BuildProductDataContext(ProductSelectionData? productSelectionData)
   {
+    if (productSelectionData?.SelectedProducts.Any() != true)
+    {
+      return string.Empty;
+    }
+
     var contextBuilder = new System.Text.StringBuilder();
 
-    contextBuilder.AppendLine($"User: {userName}");
-    contextBuilder.AppendLine($"User Query: {standaloneQuestion}");
+    contextBuilder.AppendLine("=== User Selected Products from Table ===");
+    contextBuilder.AppendLine("The user has selected the following products from the displayed table:");
     contextBuilder.AppendLine();
 
-    // Add product selection data if available
-    if (productSelectionData?.SelectedProducts.Any() == true)
+    foreach (var product in productSelectionData.SelectedProducts)
     {
-      contextBuilder.AppendLine("=== User Selected Products from Table ===");
-      contextBuilder.AppendLine("The user has selected the following products from the displayed table:");
-      contextBuilder.AppendLine();
+      contextBuilder.AppendLine($"- Product: {product.ProductName}");
+      contextBuilder.AppendLine($"  Product ID/URL: {product.ProductId}");
+      contextBuilder.AppendLine($"  Quantity: {product.Quantity}");
+      contextBuilder.AppendLine($"  Status: {(product.IsChecked ? "SELECTED (checked)" : "NOT SELECTED (unchecked)")}");
 
-      foreach (var product in productSelectionData.SelectedProducts)
+      if (product.Price.HasValue)
       {
-        contextBuilder.AppendLine($"- Product: {product.ProductName}");
-        contextBuilder.AppendLine($"  Product ID/URL: {product.ProductId}");
-        contextBuilder.AppendLine($"  Quantity: {product.Quantity}");
-        contextBuilder.AppendLine($"  Status: {(product.IsChecked ? "SELECTED (checked)" : "NOT SELECTED (unchecked)")}");
-
-        if (product.Price.HasValue)
-        {
-          contextBuilder.AppendLine($"  Price: ${product.Price.Value}");
-        }
-
-        if (product.Attributes.Any())
-        {
-          contextBuilder.AppendLine($"  Additional Info: {string.Join(", ", product.Attributes.Select(a => $"{a.Key}={a.Value}"))}");
-        }
-
-        contextBuilder.AppendLine();
+        contextBuilder.AppendLine($"  Price: ${product.Price.Value}");
       }
 
-      if (productSelectionData.UnselectedProducts.Any())
+      if (product.Attributes.Any())
       {
-        contextBuilder.AppendLine("Products NOT selected (unchecked):");
-        contextBuilder.AppendLine(string.Join(", ", productSelectionData.UnselectedProducts));
-        contextBuilder.AppendLine();
+        contextBuilder.AppendLine($"  Additional Info: {string.Join(", ", product.Attributes.Select(a => $"{a.Key}={a.Value}"))}");
       }
 
-      contextBuilder.AppendLine("IMPORTANT: Based on the selected products above and the user's message, call the appropriate tools:");
-      contextBuilder.AppendLine("- If user wants to add to cart: call add_to_cart for each SELECTED product with their specified quantities");
-      contextBuilder.AppendLine("- If user wants to remove from cart: call remove_from_cart for each UNCHECKED product");
-      contextBuilder.AppendLine("- Use the exact Product ID and Quantity from the selection data above");
-      contextBuilder.AppendLine();
-      contextBuilder.AppendLine("=== End of Selected Products ===");
       contextBuilder.AppendLine();
     }
 
-    contextBuilder.AppendLine("=== Relevant Product Information from Database ===");
-    contextBuilder.AppendLine(formattedContext);
+    if (productSelectionData.UnselectedProducts.Any())
+    {
+      contextBuilder.AppendLine("Products NOT selected (unchecked):");
+      contextBuilder.AppendLine(string.Join(", ", productSelectionData.UnselectedProducts));
+      contextBuilder.AppendLine();
+    }
+
+    contextBuilder.AppendLine("IMPORTANT: Based on the selected products above and the user's message, call the appropriate tools:");
+    contextBuilder.AppendLine("- If user wants to add to cart: call add_to_cart for each SELECTED product with their specified quantities");
+    contextBuilder.AppendLine("- If user wants to remove from cart: call remove_from_cart for each UNCHECKED product");
+    contextBuilder.AppendLine("- If user needs to find products: call search_products tool");
+    contextBuilder.AppendLine("- Use the exact Product ID and Quantity from the selection data above");
+    contextBuilder.AppendLine();
+    contextBuilder.AppendLine("=== End of Selected Products ===");
 
     return contextBuilder.ToString();
   }

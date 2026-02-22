@@ -186,7 +186,9 @@ public static class InfrastructureServiceExtensions
       var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
       var httpClient = httpClientFactory.CreateClient(nameof(ShoppingToolService));
       var logger = sp.GetRequiredService<ILogger<ShoppingToolService>>();
-      return new ShoppingToolService(httpClient, appSettings.ShoppingApiConfig, logger);
+      var retrievalServices = sp.GetRequiredService<IRetrievalService>();
+      var retrievalSettings = sp.GetRequiredService<IRetrievalSettings>();
+      return new ShoppingToolService(httpClient, retrievalServices, retrievalSettings, appSettings.ShoppingApiConfig, logger);
     });
 
     logger.LogInformation("{Project} services registered", "Infrastructure");

@@ -10,4 +10,6 @@ public class ReplacePromptDto
     public string? StandaloneQuestion { get; set; }
     public int RowCount { get; set; }
     public string? ColumnNames { get; set; }
+    public string? AdditionalData { get; set; }
+    public string? ProductData { get; set; }
 }

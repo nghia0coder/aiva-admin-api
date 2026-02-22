@@ -1,6 +1,7 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Aiva.Admin.Api.Core.Commons.Models;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 using Aiva.Admin.Api.Core.Interfaces;
 using Aiva.Admin.Api.Infrastructure.Configuration;
@@ -10,17 +11,20 @@ namespace Aiva.Admin.Api.Infrastructure.Services;
 
 public class ShoppingToolService(
     HttpClient httpClient,
+    IRetrievalService retrievalService,
+    IRetrievalSettings retrievalSettings,
     ShoppingApiConfiguration shoppingApiConfig,
     ILogger<ShoppingToolService> logger) : IShoppingToolService
 {
   private readonly ShoppingApiConfiguration _shoppingApiConfig = shoppingApiConfig;
+  private readonly IRetrievalSettings _retrievalSettings = retrievalSettings;
   public IEnumerable<ToolDefinition> GetAvailableTools()
   {
     return new[]
     {
-            CreateAddToCartTool(),
             CreateSearchProductsTool(),
             CreateGetProductInfoTool(),
+            CreateAddToCartTool(),
             CreateRemoveFromCartTool()
         };
   }
@@ -35,9 +39,9 @@ public class ShoppingToolService(
     {
       return functionName switch
       {
-        "add_to_cart" => await ExecuteAddToCartAsync(parameters, userId, cancellationToken),
-        "search_products" => await ExecuteSearchProductsAsync(parameters, cancellationToken),
+        "search_infors" => await ExecuteSearchInfoAsync(parameters, cancellationToken),
         "get_product_info" => await ExecuteGetProductInfoAsync(parameters, cancellationToken),
+        "add_to_cart" => await ExecuteAddToCartAsync(parameters, userId, cancellationToken),
         "remove_from_cart" => await ExecuteRemoveFromCartAsync(parameters, userId, cancellationToken),
         _ => Result.Error($"Unknown function: {functionName}")
       };
@@ -63,11 +67,12 @@ public class ShoppingToolService(
           properties = new
           {
             product_id = new { type = "string", description = "The ID of the product to add" },
+            product_name = new { type = "string", description = "The name of the product to add" },
             quantity = new { type = "integer", description = "Quantity to add (default: 1)" },
             size = new { type = "string", description = "Product size if applicable" },
             color = new { type = "string", description = "Product color if applicable" }
           },
-          required = new[] { "product_id" }
+          required = new[] { "product_id", "product_name" }
         }
       }
     };
@@ -79,17 +84,17 @@ public class ShoppingToolService(
     {
       Function = new FunctionDefinition
       {
-        Name = "search_products",
-        Description = "Search for products based on query",
+        Name = "search_infors",
+        Description = "Search for products in the database using Azure AI Search. Use this when user asks to find, search, look for products, or needs product information.",
         Parameters = new
         {
           type = "object",
           properties = new
           {
-            query = new { type = "string", description = "Search query for products" },
-            category = new { type = "string", description = "Product category filter" },
-            price_min = new { type = "number", description = "Minimum price filter" },
-            price_max = new { type = "number", description = "Maximum price filter" }
+            query = new { type = "string", description = "Search query for products (product name, keywords, description, category, etc.)" },
+            category = new { type = "string", description = "Product category filter (optional)" },
+            price_min = new { type = "number", description = "Minimum price filter (optional)" },
+            price_max = new { type = "number", description = "Maximum price filter (optional)" }
           },
           required = new[] { "query" }
         }
@@ -104,13 +109,13 @@ public class ShoppingToolService(
       Function = new FunctionDefinition
       {
         Name = "get_product_info",
-        Description = "Get detailed information about a specific product",
+        Description = "Get detailed information about a specific product using its ID. Use when user asks for details about a specific product they already know.",
         Parameters = new
         {
           type = "object",
           properties = new
           {
-            product_id = new { type = "string", description = "The ID of the product" }
+            product_id = new { type = "string", description = "The exact ID of the product to get detailed information for" }
           },
           required = new[] { "product_id" }
         }
@@ -132,9 +137,10 @@ public class ShoppingToolService(
           properties = new
           {
             product_id = new { type = "string", description = "The ID of the product to remove" },
+            product_name = new { type = "string", description = "The name of the product to remove" },
             quantity = new { type = "integer", description = "Quantity to remove" }
           },
-          required = new[] { "product_id" }
+          required = new[] { "product_id", "product_name" }
         }
       }
     };
@@ -215,6 +221,7 @@ public class ShoppingToolService(
     try
     {
       var productId = GetStringValue(parameters["product_id"])!;
+      var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Product #{productId}";
       var quantity = GetIntValue(parameters.GetValueOrDefault("quantity"), 1);
       var size = GetStringValue(parameters.GetValueOrDefault("size"));
       var color = GetStringValue(parameters.GetValueOrDefault("color"));
@@ -252,8 +259,12 @@ public class ShoppingToolService(
       if (response.IsSuccessStatusCode)
       {
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogInformation("Successfully added product {ProductId} to cart for user {UserId}", productId, userId);
-        return Result.Success(responseContent);
+        logger.LogInformation("Successfully added product {ProductId} ({ProductName}) to cart for user {UserId}", 
+            productId, productName, userId);
+        
+        // Build detailed success message with product information
+        var successMessage = BuildAddToCartSuccessMessage(productName, productId, quantity, size, color);
+        return Result.Success(successMessage);
       }
 
       var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -267,55 +278,70 @@ public class ShoppingToolService(
     }
   }
 
-  private async Task<Result<string>> ExecuteSearchProductsAsync(
+  private async Task<Result<string>> ExecuteSearchInfoAsync(
       Dictionary<string, object> parameters,
       CancellationToken cancellationToken)
   {
+    var keyWord = GetStringValue(parameters["query"]) ?? string.Empty;
+    var category = GetStringValue(parameters.GetValueOrDefault("category"));
+    var priceMin = GetDoubleValue(parameters.GetValueOrDefault("price_min"));
+    var priceMax = GetDoubleValue(parameters.GetValueOrDefault("price_max"));
+
     try
     {
-      var query = GetStringValue(parameters["query"])!;
-      var category = GetStringValue(parameters.GetValueOrDefault("category"));
-      var priceMin = GetDoubleValue(parameters.GetValueOrDefault("price_min"));
-      var priceMax = GetDoubleValue(parameters.GetValueOrDefault("price_max"));
+      // Build enhanced query with filters
+      var enhancedQuery = BuildSearchQuery(keyWord, category, priceMin, priceMax);
 
-      var queryParams = new List<string>
+      logger.LogInformation("Executing Azure AI Search for products with query: {Query}", enhancedQuery);
+
+      var documentSearchResult = await retrievalService.RetrieveContextAsync(
+          enhancedQuery,
+          new RetrievalOptions
+          {
+            TopK = _retrievalSettings.TopK,
+            MinScore = _retrievalSettings.HybridSearchMinScoreThreshold ?? _retrievalSettings.MinScoreThreshold,
+            Strategy = SearchStrategy.Hybrid
+          },
+          cancellationToken);
+
+      if (documentSearchResult.IsSuccess)
       {
-        $"q={Uri.EscapeDataString(query)}"
-      };
+        logger.LogInformation("Successfully searched products with Azure AI Search. Query: {Query}, Results: {ResultCount}",
+            enhancedQuery, documentSearchResult.Value.Results?.Count ?? 0);
 
-      if (!string.IsNullOrEmpty(category))
-        queryParams.Add($"category={Uri.EscapeDataString(category)}");
-
-      if (priceMin != null)
-        queryParams.Add($"priceMin={priceMin}");
-
-      if (priceMax != null)
-        queryParams.Add($"priceMax={priceMax}");
-
-      var queryString = string.Join("&", queryParams);
-      var requestUri = $"{_shoppingApiConfig.Endpoints.SearchProducts}?{queryString}";
-
-      using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-      AddAuthenticationHeader(request);
-
-      var response = await httpClient.SendAsync(request, cancellationToken);
-
-      if (response.IsSuccessStatusCode)
-      {
-        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogInformation("Successfully searched products with query: {Query}", query);
-        return Result.Success(responseContent);
+        return Result.Success($"Product Search Results (Azure AI Search):\n{documentSearchResult.Value.FormattedContext}");
       }
 
-      var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-      logger.LogWarning("Failed to search products. Status: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
-      return Result.Error($"Product search failed: {response.StatusCode}");
+      logger.LogWarning("Azure AI Search returned no results for query: {Query}", enhancedQuery);
+      return Result.Error($"No products found matching your search criteria: {keyWord}");
     }
     catch (Exception ex)
     {
-      logger.LogError(ex, "Error calling product search API");
+      logger.LogError(ex, "Error executing Azure AI Search for products with query: {Query}", keyWord);
       return Result.Error($"Product search failed: {ex.Message}");
     }
+  }
+
+  private static string BuildSearchQuery(string keyword, string? category, double? priceMin, double? priceMax)
+  {
+    var queryParts = new List<string> { keyword };
+
+    if (!string.IsNullOrEmpty(category))
+    {
+      queryParts.Add($"category:{category}");
+    }
+
+    if (priceMin.HasValue)
+    {
+      queryParts.Add($"price_min:{priceMin.Value}");
+    }
+
+    if (priceMax.HasValue)
+    {
+      queryParts.Add($"price_max:{priceMax.Value}");
+    }
+
+    return string.Join(" ", queryParts);
   }
 
   private async Task<Result<string>> ExecuteGetProductInfoAsync(
@@ -351,6 +377,32 @@ public class ShoppingToolService(
     }
   }
 
+  private static string BuildAddToCartSuccessMessage(
+      string productName, 
+      string productId, 
+      int quantity, 
+      string? size, 
+      string? color)
+  {
+    var message = new System.Text.StringBuilder();
+    message.AppendLine($"✅ Successfully added to cart:");
+    message.AppendLine($"   • Product: {productName}");
+    message.AppendLine($"   • Product ID: {productId}");
+    message.AppendLine($"   • Quantity: {quantity}");
+    
+    if (!string.IsNullOrWhiteSpace(size))
+    {
+      message.AppendLine($"   • Size: {size}");
+    }
+    
+    if (!string.IsNullOrWhiteSpace(color))
+    {
+      message.AppendLine($"   • Color: {color}");
+    }
+    
+    return message.ToString();
+  }
+
   private async Task<Result<string>> ExecuteRemoveFromCartAsync(
       Dictionary<string, object> parameters,
       string userId,
@@ -359,6 +411,7 @@ public class ShoppingToolService(
     try
     {
       var productId = GetStringValue(parameters["product_id"])!;
+      var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Product #{productId}";
       var quantity = GetIntValue(parameters.GetValueOrDefault("quantity"), 1);
 
       var requestBody = new
@@ -383,8 +436,15 @@ public class ShoppingToolService(
       if (response.IsSuccessStatusCode)
       {
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogInformation("Successfully removed product {ProductId} from cart for user {UserId}", productId, userId);
-        return Result.Success(responseContent);
+        logger.LogInformation("Successfully removed product {ProductId} ({ProductName}) from cart for user {UserId}", 
+            productId, productName, userId);
+        
+        // Build detailed success message with product information
+        var successMessage = $"✅ Successfully removed from cart:\n" +
+                           $"   • Product: {productName}\n" +
+                           $"   • Product ID: {productId}\n" +
+                           $"   • Quantity removed: {quantity}";
+        return Result.Success(successMessage);
       }
 
       var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);

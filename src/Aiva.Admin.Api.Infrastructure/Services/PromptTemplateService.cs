@@ -22,6 +22,8 @@ public class PromptTemplateService : IPromptTemplateService
     result.Replace(MessageReplaceKeys.RowCount, replacePromptDto.RowCount.ToString());
     result.Replace(MessageReplaceKeys.ColumnNames, replacePromptDto.ColumnNames ?? string.Empty);
     result.Replace(MessageReplaceKeys.FullName, replacePromptDto.FullName ?? string.Empty);
+    result.Replace(MessageReplaceKeys.AdditionalData, replacePromptDto.AdditionalData ?? string.Empty);
+    result.Replace(MessageReplaceKeys.ProductData, replacePromptDto.ProductData ?? string.Empty);
 
     return result.ToString();
   }

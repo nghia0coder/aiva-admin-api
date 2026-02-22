@@ -22,7 +22,8 @@ public sealed class FileSystemPromptService : ISystemPromptService
     { "customer-support", "aiva_customer_assistant_prompt.md" },
     { "internal-assistant", "system_prompt.md" },
     { "data-assistant", "DATA_ASSISTANT_SYSTEM_PROMPT.md" },
-    { "shopping-assistant", "SHOPPING_ASSISTANT_SYSTEM_PROMPT.md" }
+    { "shopping-assistant", "SHOPPING_ASSISTANT_SYSTEM_PROMPT.md" },
+    { "tool-selector", "TOOL_SELECTION_PROMPT.md" }
   };
 
   public FileSystemPromptService(
