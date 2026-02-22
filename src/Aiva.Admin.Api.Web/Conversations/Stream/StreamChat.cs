@@ -160,6 +160,16 @@ public class StreamChat(
         type = "text"
       }, ct);
 
+      // Stream action if present (e.g., redirect to checkout)
+      if (!string.IsNullOrEmpty(response.ActionType) && response.ActionPayload != null)
+      {
+        await streamingService.SendEventAsync(HttpContext, "action", new
+        {
+          actionType = response.ActionType,
+          payload = response.ActionPayload
+        }, ct);
+      }
+
       await streamingService.SendEventAsync(HttpContext, "done", new { complete = true }, ct);
     }
     else

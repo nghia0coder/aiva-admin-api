@@ -1,4 +1,4 @@
-namespace Aiva.Admin.Api.UseCases.Conversations.Stream;
+﻿namespace Aiva.Admin.Api.UseCases.Conversations.Stream;
 
 public class StreamShoppingChatResponse
 {
@@ -7,6 +7,8 @@ public class StreamShoppingChatResponse
   public List<string> ToolsExecuted { get; set; } = new();
   public bool HasToolsExecuted => ToolsExecuted.Any();
   public string? AdditionalData { get; set; }
+  public string? ActionType { get; set; }
+  public Dictionary<string, string>? ActionPayload { get; set; }
 }
 
 // TODO: Implement these models based on your business requirements

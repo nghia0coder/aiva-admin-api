@@ -25,7 +25,8 @@ public class ShoppingToolService(
             CreateSearchProductsTool(),
             CreateGetProductInfoTool(),
             CreateAddToCartTool(),
-            CreateRemoveFromCartTool()
+            CreateRemoveFromCartTool(),
+            CreateCheckoutTool()
         };
   }
 
@@ -43,6 +44,7 @@ public class ShoppingToolService(
         "get_product_info" => await ExecuteGetProductInfoAsync(parameters, cancellationToken),
         "add_to_cart" => await ExecuteAddToCartAsync(parameters, userId, cancellationToken),
         "remove_from_cart" => await ExecuteRemoveFromCartAsync(parameters, userId, cancellationToken),
+        "checkout" => await ExecuteCheckoutAsync(userId, cancellationToken),
         _ => Result.Error($"Unknown function: {functionName}")
       };
     }
@@ -141,6 +143,24 @@ public class ShoppingToolService(
             quantity = new { type = "integer", description = "Quantity to remove" }
           },
           required = new[] { "product_id", "product_name" }
+        }
+      }
+    };
+  }
+
+  private static ToolDefinition CreateCheckoutTool()
+  {
+    return new ToolDefinition
+    {
+      Function = new FunctionDefinition
+      {
+        Name = "checkout",
+        Description = "Initiate checkout process when user explicitly wants to complete their purchase. Use when user says 'checkout', 'thanh toán', 'đặt hàng', 'mua luôn', 'proceed to checkout', or similar checkout intentions.",
+        Parameters = new
+        {
+          type = "object",
+          properties = new { },
+          required = Array.Empty<string>()
         }
       }
     };
@@ -455,6 +475,29 @@ public class ShoppingToolService(
     {
       logger.LogError(ex, "Error calling remove from cart API");
       return Result.Error($"Remove from cart failed: {ex.Message}");
+    }
+  }
+
+  private async Task<Result<string>> ExecuteCheckoutAsync(
+      string userId,
+      CancellationToken cancellationToken)
+  {
+    try
+    {
+      logger.LogInformation("Initiating checkout for user {UserId}", userId);
+
+      // Return a special marker that ShoppingChatService will detect
+      // to trigger redirect action
+      var checkoutMessage = "🛒 [CHECKOUT_ACTION] Redirecting to checkout page...\n" +
+                          "URL: http://localhost:5000\n" +
+                          "Your cart items are ready for purchase!";
+
+      return await Task.FromResult(Result.Success(checkoutMessage));
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "Error initiating checkout for user {UserId}", userId);
+      return Result.Error($"Checkout failed: {ex.Message}");
     }
   }
 }

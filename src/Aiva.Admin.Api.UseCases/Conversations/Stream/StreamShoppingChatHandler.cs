@@ -78,7 +78,9 @@ public class StreamShoppingChatHandler(
     {
       TextResponse = result.TextResponse,
       HasProducts = result.HasProducts,
-      ToolsExecuted = result.ToolsExecuted
+      ToolsExecuted = result.ToolsExecuted,
+      ActionType = result.ActionType,
+      ActionPayload = result.ActionPayload
     };
   }
 

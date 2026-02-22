@@ -47,4 +47,8 @@ public class ShoppingChatResult
   public bool HasProducts { get; set; }
   public List<string> ToolsExecuted { get; set; } = new();
   public Dictionary<string, object> ToolResults { get; set; } = new();
+  
+  // Action support for frontend interactions
+  public string? ActionType { get; set; } // "redirect", "open_modal", etc.
+  public Dictionary<string, string>? ActionPayload { get; set; } // Action parameters
 }

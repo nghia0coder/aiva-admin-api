@@ -118,13 +118,18 @@ public class ShoppingChatService(
 
         var finalResponse = await chatService.GetCompletionAsync(systemPrompt, dataStandalone.StandaloneQuestion);
 
-        return Result.Success(new ShoppingChatResult
+        var resultWithTool = new ShoppingChatResult
         {
           TextResponse = finalResponse,
           HasProducts = true,
           ToolsExecuted = completionResult.ToolCalls.Select(tc => tc.Function.Name).ToList(),
           ToolResults = toolResults,
-        });
+        };
+
+        // Detect checkout action from tool results
+        DetectAndSetActions(resultWithTool, toolResults);
+
+        return Result.Success(resultWithTool);
       }
 
       logger.LogInformation("No tools needed, using basic system prompt for conversation {ConversationId}", conversation.Id);
@@ -204,6 +209,35 @@ public class ShoppingChatService(
     }
 
     return results;
+  }
+
+  private void DetectAndSetActions(ShoppingChatResult result, Dictionary<string, object> toolResults)
+  {
+    // Check if any tool result contains checkout action marker
+    foreach (var toolResult in toolResults.Values)
+    {
+      var resultString = toolResult?.ToString() ?? string.Empty;
+      
+      if (resultString.Contains("[CHECKOUT_ACTION]"))
+      {
+        // Extract URL from the result (format: "URL: http://localhost:5000")
+        var urlMatch = System.Text.RegularExpressions.Regex.Match(resultString, @"URL:\s*(\S+)");
+        var checkoutUrl = urlMatch.Success ? urlMatch.Groups[1].Value : "http://localhost:5000";
+
+        result.ActionType = "redirect";
+        result.ActionPayload = new Dictionary<string, string>
+        {
+          ["url"] = checkoutUrl,
+          ["delay"] = "1500" // 1.5 seconds delay to let user read the message
+        };
+
+        // Clean up the text response to remove the marker
+        result.TextResponse = result.TextResponse.Replace("[CHECKOUT_ACTION]", "").Trim();
+        
+        logger.LogInformation("Checkout action detected. Will redirect to: {Url}", checkoutUrl);
+        break;
+      }
+    }
   }
 
   private string BuildProductDataContext(ProductSelectionData? productSelectionData)

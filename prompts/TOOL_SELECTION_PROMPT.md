@@ -78,7 +78,34 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 
 ---
 
-## 5. No tool – text response only
+## 5. checkout
+
+**Purpose:** Initiate checkout process and redirect user to checkout page.
+
+**When to call:**
+- User explicitly wants to checkout or complete their purchase.
+- Trigger phrases: "checkout", "thanh toán", "đặt hàng xong", "complete order", "proceed to checkout", "mua luôn", "pay now", v.v.
+- User has items in cart and confirms they want to buy.
+
+**Input:**
+- No parameters required.
+
+**What it does:**
+- Prepares checkout session.
+- Returns checkout URL (http://localhost:5000) for frontend to redirect.
+- Frontend will automatically redirect user to checkout page.
+
+**When NOT to call:**
+- User is still browsing or adding items.
+- User hasn't confirmed purchase intent.
+- Cart is empty (should prompt user to add items first).
+
+**Return:**
+- Success message with checkout URL for redirect action.
+
+---
+
+## 6. No tool – text response only
 
 **When to use:**
 - Greetings: "xin chào", "hello", "hi".
@@ -105,4 +132,5 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 - **search_infors**: Call when user is searching or when ProductId must be resolved.
 - **get_product_info**: Call when user needs product details or ProductId validation.
 - **remove_from_cart**: Call when user clearly wants to remove items.
+- **checkout**: Call when user explicitly wants to checkout/complete purchase. Returns redirect URL.
 - **No tool**: Respond with text when no tool applies or more clarification is needed.
