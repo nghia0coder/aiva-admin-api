@@ -10,6 +10,7 @@ using Data;
 using Data.Config;
 using Data.Queries;
 using Data.Seeding;
+using Email;
 using Embedding;
 using Formatting;
 using Microsoft.Extensions.Caching.Memory;
@@ -193,6 +194,9 @@ public static class InfrastructureServiceExtensions
     });
 
     services.AddScoped<ISqlExecutorDbConnectionFactory, SqlExecutorDbConnectionFactory>();
+
+    // Register email service
+    services.AddScoped<IEmailSender, FakeEmailSender>();
 
     logger.LogInformation("{Project} services registered", "Infrastructure");
 
