@@ -28,6 +28,7 @@ public class ConnectionStringsSettings
   public string AivaChatbotDb { get; set; } = "aiva-chatbot-db";
   public string DefaultConnection { get; set; } = string.Empty;
   public string SqliteConnection { get; set; } = string.Empty;
+  public string SqlExecutorConnection { get; set; } = string.Empty;
 }
 
 public class DatabaseSettings

@@ -1,21 +1,20 @@
-using System.Data;
+﻿using System.Data;
 using Aiva.Admin.Api.Core.Interfaces;
 using Ardalis.Result;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Aiva.Admin.Api.Infrastructure.Data;
 
 public sealed class SqlExecutorService : ISqlExecutorService
 {
-  private readonly AppDbContext _dbContext;
+  private readonly ISqlExecutorDbConnectionFactory _connectionFactory;
   private readonly ILogger<SqlExecutorService> _logger;
 
   public SqlExecutorService(
-      AppDbContext dbContext,
+      ISqlExecutorDbConnectionFactory connectionFactory,
       ILogger<SqlExecutorService> logger)
   {
-    _dbContext = dbContext;
+    _connectionFactory = connectionFactory;
     _logger = logger;
   }
 
@@ -28,20 +27,15 @@ public sealed class SqlExecutorService : ISqlExecutorService
       _logger.LogInformation("Executing dynamic SQL: {Sql}", sql);
 
       var results = new List<Dictionary<string, object>>();
-      var connection = _dbContext.Database.GetDbConnection();
 
-      if (connection.State != ConnectionState.Open)
-      {
-        await connection.OpenAsync(cancellationToken);
-      }
-
+      using var connection = await _connectionFactory.CreateConnectionAsync(cancellationToken);
       using var command = connection.CreateCommand();
       command.CommandText = sql;
       command.CommandType = CommandType.Text;
 
-      using var reader = await command.ExecuteReaderAsync(cancellationToken);
-      
-      while (await reader.ReadAsync(cancellationToken))
+      using var reader = command.ExecuteReader();
+
+      while (reader.Read())
       {
         var row = new Dictionary<string, object>();
         for (int i = 0; i < reader.FieldCount; i++)

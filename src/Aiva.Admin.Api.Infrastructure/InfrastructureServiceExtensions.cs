@@ -191,6 +191,8 @@ public static class InfrastructureServiceExtensions
       return new ShoppingToolService(httpClient, retrievalServices, retrievalSettings, appSettings.ShoppingApiConfig, logger);
     });
 
+    services.AddScoped<ISqlExecutorDbConnectionFactory, SqlExecutorDbConnectionFactory>();
+
     logger.LogInformation("{Project} services registered", "Infrastructure");
 
     return services;

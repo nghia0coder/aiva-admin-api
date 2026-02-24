@@ -6,7 +6,6 @@ public static class PromptTemplates
       <guidelines_for_standalone>
       - If the <new_question> is not related to the <chat_history>, return the <new_question> as the standalone question. Just generate the standalone question without commentary.
       - Analyze to see if the <new_question> is related to the <chat_history>, if so create a standalone question that fully covers the content and context of both the <chat_history> and the <new_question>. If the <new_question> is not related to the <chat_history>, simply use the content of the <new_question> to create the standalone question without relying on the <chat_history>.
-      - Do not translate the English words and terms mentioned in the <new_question>; If you are not sure, choose Vietnamese as default language.
       - If the <chat_history> is empty, it means that the <new_question> is the first question in the conversation so you must return exactly the <new_question> as your answer.
       - Do not answer the <new_question> in the standalone question.
       - When the <new_question> refers to something mentioned ""above"", ""this"", or ""that"", it means they are referring to information previously discussed in the <chat_history>; so you need to combine the <new_question> and the <chat_history>.
