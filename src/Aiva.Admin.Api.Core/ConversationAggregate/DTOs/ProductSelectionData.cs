@@ -1,3 +1,5 @@
+﻿using System.Text.Json.Serialization;
+
 namespace Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 
 /// <summary>
@@ -22,4 +24,28 @@ public class SelectedProductItem
   public string ProductUrl { get; set; } = string.Empty;
   public decimal? Price { get; set; }
   public Dictionary<string, string> Attributes { get; set; } = new();
+}
+
+public class ProductSelectionItemDto
+{
+  [JsonPropertyName("productId")]
+  public string ProductId { get; set; } = string.Empty;
+
+  [JsonPropertyName("quantity")]
+  public int Quantity { get; set; } = 1;
+
+  [JsonPropertyName("extraData")]
+  public ProductExtraDataDto? ExtraData { get; set; }
+}
+
+public class ProductExtraDataDto
+{
+  [JsonPropertyName("searchAttributes")]
+  public List<SearchAttributeDto> SearchAttributes { get; set; } = new();
+}
+
+public class SearchAttributeDto
+{
+  public string? Name { get; set; }
+  public string? Value { get; set; }
 }

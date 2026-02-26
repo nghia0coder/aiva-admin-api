@@ -23,7 +23,8 @@ public sealed class FileSystemPromptService : ISystemPromptService
     { "internal-assistant", "system_prompt.md" },
     { "data-assistant", "DATA_ASSISTANT_SYSTEM_PROMPT_SMARTSTORE.md" },
     { "shopping-assistant", "SHOPPING_ASSISTANT_SYSTEM_PROMPT.md" },
-    { "tool-selector", "TOOL_SELECTION_PROMPT.md" }
+    { "tool-selector", "TOOL_SELECTION_PROMPT.md" },
+    { "product_selection", "PRODUCT_SELECTION_EXTRACTION_PROMPT.md" }
   };
 
   public FileSystemPromptService(

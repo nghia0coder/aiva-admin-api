@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Core.ConversationAggregate.Constants;
+namespace Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 
 public static class MessageReplaceKeys
 {
@@ -13,4 +13,5 @@ public static class MessageReplaceKeys
   public const string FullName = "[full_name]";
   public const string AdditionalData = "[additional_data]";
   public const string ProductData = "[product_data]";
+  public const string ToolResultsInstruction = "[tool_results_instruction]";
 }

@@ -1,4 +1,4 @@
-using Ardalis.Result;
+﻿using Ardalis.Result;
 using Azure;
 using Azure.Identity;
 using Azure.Search.Documents;
@@ -288,7 +288,6 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
         ["category"] = chunk.Metadata.Category ?? "",
         ["brand"] = chunk.Metadata.Brand ?? "",
         ["price"] = chunk.Metadata.Price ?? (double?)null,
-        ["tags"] = chunk.Metadata.Tags?.ToArray() ?? Array.Empty<string>()
       }).ToList();
 
       // Batch upload (Azure AI Search supports up to 1000 documents per batch)

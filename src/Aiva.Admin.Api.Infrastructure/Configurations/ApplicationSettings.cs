@@ -273,4 +273,5 @@ public class ShoppingApiEndpoints
   public string RemoveFromCart { get; set; } = "/api/cart/remove";
   public string SearchProducts { get; set; } = "/api/products/search";
   public string GetProductInfo { get; set; } = "/api/products/{productId}";
+  public string GetCart { get; set; } = "/odata/v1/shoppingcartitems";
 }

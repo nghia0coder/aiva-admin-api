@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 using Aiva.Admin.Api.Core.Interfaces;
@@ -24,6 +24,7 @@ public class PromptTemplateService : IPromptTemplateService
     result.Replace(MessageReplaceKeys.FullName, replacePromptDto.FullName ?? string.Empty);
     result.Replace(MessageReplaceKeys.AdditionalData, replacePromptDto.AdditionalData ?? string.Empty);
     result.Replace(MessageReplaceKeys.ProductData, replacePromptDto.ProductData ?? string.Empty);
+    result.Replace(MessageReplaceKeys.ToolResultsInstruction, replacePromptDto.ToolResultsInstruction ?? string.Empty);
 
     return result.ToString();
   }

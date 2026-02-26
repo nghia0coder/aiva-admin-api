@@ -12,6 +12,20 @@ public interface IJsonExtractionService
   string ExtractJson(string text);
 }
 
+/// <summary>
+/// Generic JSON parser for LLM-extracted structured output (standalone question, product selection, etc.)
+/// </summary>
+public interface IJsonParseService
+{
+  /// <summary>
+  /// Deserializes JSON string to T. Throws on invalid/empty input or deserialization failure.
+  /// </summary>
+  /// <typeparam name="T">Target type (e.g. StandaloneQuestionDto, List&lt;ProductSelectionExtractionItemDto&gt;)</typeparam>
+  /// <param name="jsonContent">JSON string to parse</param>
+  /// <returns>Deserialized instance</returns>
+  T Parse<T>(string jsonContent);
+}
+
 public interface IStandaloneQuestionService
 {
   /// <summary>

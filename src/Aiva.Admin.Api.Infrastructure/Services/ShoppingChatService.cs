@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
@@ -16,7 +16,8 @@ public class ShoppingChatService(
     IChatHistoryService chatHistoryService,
     IJsonExtractionService jsonExtractionService,
     IStandaloneQuestionService standaloneQuestionService,
-    IHtmlTableParserService htmlTableParserService,
+    IJsonParseService jsonParseService,
+    //IHtmlTableParserService htmlTableParserService,
     ILogger<ShoppingChatService> logger) : IShoppingChatService
 {
   public async Task<Result<ShoppingChatResult>> ProcessShoppingChatAsync(
@@ -28,13 +29,23 @@ public class ShoppingChatService(
   {
     try
     {
-      // Parse additional user data if provided
-      ProductSelectionData? productSelectionData = null;
+      List<ProductSelectionItemDto>? productSelection = null;
       if (!string.IsNullOrWhiteSpace(additionalUserData))
       {
-        productSelectionData = htmlTableParserService.ParseProductTable(additionalUserData);
-        logger.LogInformation("Parsed product selection data: {SelectedCount} selected products",
-            productSelectionData.SelectedProducts.Count);
+        var productSelectionPrompt = await systemPromptService.GetActivePromptContentAsync(
+            SystemPromptKey.From("product_selection"),
+            cancellationToken);
+
+        var productSelectionMessage = promptTemplateService.ReplacePromptByKey(productSelectionPrompt, new ReplacePromptDto
+        {
+          AdditionalData = additionalUserData
+        });
+
+        var productSelectionResult = await chatService.GetCompletionAsync("", productSelectionMessage);
+
+        var productDataJson = jsonExtractionService.ExtractJson(productSelectionResult);
+
+        productSelection = jsonParseService.Parse<List<ProductSelectionItemDto>>(productDataJson);
       }
 
       // Get recent messages and chat history
@@ -49,7 +60,7 @@ public class ShoppingChatService(
             FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
             ChatInput = userMessage,
             ChatHistory = chatHistory,
-            AdditionalData = BuildProductDataContext(productSelectionData)
+            AdditionalData = productSelection != null ? JsonSerializer.Serialize(productSelection) : null
           });
 
       var standaloneQuestionResult = await chatService.GetCompletionAsync("", standaloneMessage);
@@ -84,7 +95,7 @@ public class ShoppingChatService(
 
       var toolPromptResult = promptTemplateService.ReplacePromptByKey(toolPrompt, new ReplacePromptDto
       {
-        ProductData = BuildProductDataContext(productSelectionData)
+        AdditionalData = productSelection != null ? JsonSerializer.Serialize(productSelection) : null
       });
 
       var availableTools = shoppingToolService.GetAvailableTools();
@@ -108,12 +119,15 @@ public class ShoppingChatService(
             userName,
             cancellationToken);
 
+        var toolResultsInstruction = BuildToolResultsInstruction();
+
         var systemPrompt = promptTemplateService.ReplacePromptByKey(
           systemPromptTemplate,
           new ReplacePromptDto
           {
             FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
-            ProductData = string.Join("\n", toolResults.Values)
+            ProductData = string.Join("\n", toolResults.Values),
+            ToolResultsInstruction = toolResultsInstruction
           });
 
         var finalResponse = await chatService.GetCompletionAsync(systemPrompt, dataStandalone.StandaloneQuestion);
@@ -163,6 +177,27 @@ public class ShoppingChatService(
       logger.LogError(ex, "Error processing shopping chat for conversation {ConversationId}", conversation.Id);
       return Result.Error($"Shopping chat processing failed: {ex.Message}");
     }
+  }
+
+  private static string BuildToolResultsInstruction()
+  {
+    return """
+<tool_execution_context>
+CRITICAL: Shopping tools (add_to_cart, remove_from_cart, checkout, etc.) have ALREADY been executed.
+The <catalog_data> section below contains TOOL EXECUTION RESULTS (success/failure messages), NOT product catalog.
+
+OVERRIDE - IGNORE ALL OTHER PROMPT RULES: When this block is present, do NOT say "I don't have enough information", "I could not find", or ask the user for product details. The action has been COMPLETED. Your ONLY task is to confirm based on catalog_data.
+
+Your task:
+- Summarize the tool results from catalog_data in a brief, friendly confirmation (1-3 sentences)
+- Do NOT display product tables, search for products, or recommend alternatives unless the user asks
+- Match the user's language: if user asked in English, respond in English; if Vietnamese, respond in Vietnamese
+- If all tools succeeded: confirm success concisely (e.g. English: "Successfully added to cart!", Vietnamese: "Đã thêm vào giỏ hàng thành công!")
+- If any failed: acknowledge briefly and offer to help
+- Keep response focused on the action performed
+</tool_execution_context>
+
+""";
   }
 
   private ShoppingChatResult ParseShoppingResponse(string responseAnswer)

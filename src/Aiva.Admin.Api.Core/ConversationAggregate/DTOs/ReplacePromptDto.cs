@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
+namespace Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
 
 public class ReplacePromptDto
 {
@@ -12,4 +12,5 @@ public class ReplacePromptDto
     public string? ColumnNames { get; set; }
     public string? AdditionalData { get; set; }
     public string? ProductData { get; set; }
+    public string? ToolResultsInstruction { get; set; }
 }

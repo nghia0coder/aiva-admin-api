@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Infrastructure;
+namespace Aiva.Admin.Api.Infrastructure;
 
 using Aiva.Admin.Api.Infrastructure.SystemPrompts;
 using AzureAI;
@@ -161,6 +161,7 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IDataFormatterService, DataFormatterService>()
            .AddScoped<IChatHistoryService, ChatHistoryService>()
            .AddScoped<IJsonExtractionService, JsonExtractionService>()
+           .AddScoped<IJsonParseService, JsonParseService>()
            .AddScoped<IStandaloneQuestionService, StandaloneQuestionService>()
            .AddScoped<IShoppingChatService, ShoppingChatService>()
            .AddScoped<IHtmlTableParserService, HtmlTableParserService>();
