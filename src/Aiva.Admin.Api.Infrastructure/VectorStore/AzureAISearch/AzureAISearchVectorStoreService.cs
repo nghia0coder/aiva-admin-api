@@ -70,13 +70,13 @@ public sealed class AzureAISearchVectorStoreService : IVectorStoreService
     // 3. Enable Semantic Ranking (if requested)
     if (options.UseSemanticRanking)
     {
-      searchOptions.QueryType = SearchQueryType.Semantic;
-      searchOptions.SemanticSearch = new SemanticSearchOptions
-      {
-        SemanticConfigurationName = _configuration.SemanticConfigurationName,
-        QueryCaption = new QueryCaption(QueryCaptionType.Extractive),
-        QueryAnswer = new QueryAnswer(QueryAnswerType.Extractive)
-      };
+      searchOptions.QueryType = SearchQueryType.Simple;
+      //searchOptions.SemanticSearch = new SemanticSearchOptions
+      //{
+      //  SemanticConfigurationName = _configuration.SemanticConfigurationName,
+      //  QueryCaption = new QueryCaption(QueryCaptionType.Extractive),
+      //  QueryAnswer = new QueryAnswer(QueryAnswerType.Extractive)
+      //};
     }
 
     // 4. Build filters (same pattern as existing SearchAsync)
