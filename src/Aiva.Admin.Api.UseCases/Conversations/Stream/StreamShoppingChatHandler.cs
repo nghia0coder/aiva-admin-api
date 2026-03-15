@@ -1,4 +1,4 @@
-using Aiva.Admin.Api.Core.ConversationAggregate;
+﻿using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Specifications;
 using Aiva.Admin.Api.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -8,6 +8,7 @@ namespace Aiva.Admin.Api.UseCases.Conversations.Stream;
 public class StreamShoppingChatHandler(
     IRepository<Conversation> repository,
     IShoppingChatService shoppingChatService,
+    IServiceBusPublisher serviceBusPublisher,
     ILogger<StreamShoppingChatHandler> logger)
     : IRequestHandler<StreamShoppingChatCommand, Result<StreamShoppingChatResponse>>
 {
@@ -43,14 +44,21 @@ public class StreamShoppingChatHandler(
       // Save assistant message
       conversation.AddMessage(ChatRole.Assistant, shoppingResult.Value.TextResponse);
 
-      // Handle title generation if needed
-      if (conversation.IsReadyForTitleGeneration())
-      {
-        conversation.QueueForTitleGeneration();
-      }
-
       // Save conversation
       await repository.UpdateAsync(conversation, cancellationToken);
+
+      if (conversation.IsReadyForTitleGeneration())
+      {
+        // Publish message to Service Bus
+        var titleMessage = new TitleGenerationMessage(
+            conversation.Id.Value,
+            DateTime.UtcNow);
+
+        await serviceBusPublisher.PublishAsync(
+            titleMessage,
+            "title-generation-queue",
+            cancellationToken);
+      }
 
       // Map to response DTO
       var response = MapToResponse(shoppingResult.Value);

@@ -86,3 +86,5 @@ public record ActionMetadataDTO(
     IReadOnlyDictionary<string, object> Params,
     bool IsDisabled = false,
     string? DisabledReason = null);
+
+public record TitleGenerationMessage(Guid ConversationId, DateTime RequestedAt);

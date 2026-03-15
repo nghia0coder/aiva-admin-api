@@ -27,6 +27,7 @@
     <PackageReference Include="SQLite" />
     <PackageReference Include="Vogen" />
     <PackageReference Include="Microsoft.Identity.Web" />
+    <PackageReference Include="Azure.Messaging.ServiceBus" />
   </ItemGroup>
 
   <ItemGroup>

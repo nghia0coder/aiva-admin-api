@@ -1,6 +1,8 @@
-namespace Aiva.Admin.Api.Infrastructure;
+﻿namespace Aiva.Admin.Api.Infrastructure;
 
+using Aiva.Admin.Api.Infrastructure.Messaging;
 using Aiva.Admin.Api.Infrastructure.SystemPrompts;
+using Azure.Messaging.ServiceBus;
 using AzureAI;
 using BlobStorage;
 using Configuration;
@@ -181,6 +183,19 @@ public static class InfrastructureServiceExtensions
         ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         : null
     });
+
+
+
+    services.AddSingleton(serviceProvider =>
+    {
+      var connectionString = appSettings.ServiceBus.ConnectionString;
+      return new ServiceBusClient(connectionString);
+    });
+
+    services.AddScoped<IServiceBusPublisher, ServiceBusPublisher>();
+    logger.LogInformation("Service Bus messaging configured");
+
+
 
     // Register IShoppingToolService separately to use the configured HttpClient
     services.AddScoped<IShoppingToolService>(sp =>

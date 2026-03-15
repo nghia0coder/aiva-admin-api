@@ -21,6 +21,7 @@ public class AppSettings
   public RetrievalSettings Retrieval { get; set; } = new();
   public SystemPromptSettings SystemPrompt { get; set; } = new();
   public IntentDetectionSettings IntentDetection { get; set; } = new();
+  public ServiceBusSettings ServiceBus { get; set; } = new();
 }
 
 public class ConnectionStringsSettings
@@ -254,6 +255,12 @@ public sealed class IntentDetectionSettings
   /// Cache TTL in seconds (only used if EnableCaching = true)
   /// </summary>
   public int CacheTtlSeconds { get; set; } = 300;  // 5 minutes
+}
+
+public sealed class ServiceBusSettings
+{
+  public const string SectionName = "ServiceBus";
+  public string ConnectionString { get; set; } = string.Empty;
 }
 
 public sealed class ShoppingApiConfiguration
