@@ -2,17 +2,6 @@
 
 using Microsoft.Extensions.Logging;
 
-public class CorsSettings
-{
-  public const string SectionName = "Cors";
-  public string[] AllowedOrigins { get; set; } = [];
-  public string[] AllowedMethods { get; set; } = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"];
-  public string[] AllowedHeaders { get; set; } = ["Content-Type", "Authorization", "X-Requested-With"];
-  public string[] ExposedHeaders { get; set; } = [];
-  public bool AllowCredentials { get; set; } = false;
-  public int MaxAgeSeconds { get; set; } = 600;
-}
-
 public static class CorsConfigs
 {
   public const string DefaultPolicyName = "AivaAdminCorsPolicy";
@@ -23,9 +12,11 @@ public static class CorsConfigs
       IHostEnvironment environment,
       ILogger logger)
   {
-    var corsSettings = configuration
-        .GetSection(CorsSettings.SectionName)
-        .Get<CorsSettings>() ?? new CorsSettings();
+    // Get CORS settings from AppSettings section
+    var appSettingsSection = configuration.GetSection("AppSettings");
+    var corsSettings = appSettingsSection
+        .GetSection("Cors")
+        .Get<Infrastructure.Configuration.CorsSettings>() ?? new Infrastructure.Configuration.CorsSettings();
 
     services.AddCors(options =>
     {
