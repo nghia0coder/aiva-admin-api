@@ -46,10 +46,10 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 
 ## 2. search_infors
 
-**Purpose:** Search for products or information about shop store by query or filters.
+**Purpose:** Search for products, policy or information about shop store by query or filters.
 
 **When to call:**
-- User wants to find products or any information: "tìm", "search", "có sản phẩm", "giới thiệu", "tôi cần", "looking for", v.v.
+- User wants to find products or any information: "tìm", "search", "có sản phẩm", "giới thiệu", "tôi cần", "looking for", "policy", v.v.
 - Need to resolve product name to ProductId before add_to_cart (when no [additional_data]).
 
 **Input:**

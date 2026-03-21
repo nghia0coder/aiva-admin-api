@@ -40,6 +40,10 @@ public sealed class FileProcessingBackgroundService : BackgroundService
       return;
     }
 
+    // NOTE: File processing has been migrated to Azure Functions with Service Bus triggers
+    // This background service is kept as fallback but should typically be disabled
+    _logger.LogWarning("File Processing Background Service is running as fallback. Consider using Azure Functions instead.");
+
     // Initial delay to allow services to start
     await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
 

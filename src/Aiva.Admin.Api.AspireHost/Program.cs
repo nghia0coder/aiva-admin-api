@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Hosting;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -15,10 +15,10 @@ if (builder.Environment.IsDevelopment())
     .WaitFor(webApi);
 
   // Add the worker project for background processing
-  builder.AddProject<Projects.Aiva_Admin_Api_Worker>("worker")
-  .WithReference(webApi)
-  .WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
-  .WaitFor(webApi); // Worker waits for Web to ensure DB is migrated
+  //builder.AddProject<Projects.Aiva_Admin_Api_Worker>("worker")
+  //.WithReference(webApi)
+  //.WithEnvironment("DOTNET_ENVIRONMENT", builder.Environment.EnvironmentName)
+  //.WaitFor(webApi); // Worker waits for Web to ensure DB is migrated
 }
 
 builder.AddAzureFunctionsProject<Projects.Aiva_Admin_Function>("aiva-admin-function");

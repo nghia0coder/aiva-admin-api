@@ -167,7 +167,8 @@ public static class InfrastructureServiceExtensions
            .AddScoped<IJsonParseService, JsonParseService>()
            .AddScoped<IStandaloneQuestionService, StandaloneQuestionService>()
            .AddScoped<IShoppingChatService, ShoppingChatService>()
-           .AddScoped<IHtmlTableParserService, HtmlTableParserService>();
+           .AddScoped<IHtmlTableParserService, HtmlTableParserService>()
+           .AddScoped<ITitleGenerationQueueService, TitleGenerationQueueService>();
 
 
     services.AddHttpClient<ShoppingToolService>(client =>

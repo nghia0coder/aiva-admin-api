@@ -18,6 +18,7 @@ IPromptTemplateService promptTemplateService,
 IDataFormatterService dataFormatterService,
 IChatHistoryService chatHistoryService,
 IChartGenerationService chartGenerationService,
+ITitleGenerationQueueService titleGenerationQueueService,
 ILogger<StreamDataChatHandler> logger)
 : IRequestHandler<StreamDataChatCommand, Result<StreamDataChatResponse>>
 {
@@ -139,10 +140,7 @@ ILogger<StreamDataChatHandler> logger)
         assistantMessage.SetChartResponse(chartMessageData);
       }
 
-      if (conversation.IsReadyForTitleGeneration())
-      {
-        conversation.QueueForTitleGeneration();
-      }
+      await titleGenerationQueueService.QueueTitleGenerationIfReadyAsync(conversation, cancellationToken);
 
       await repository.UpdateAsync(conversation, cancellationToken);
 

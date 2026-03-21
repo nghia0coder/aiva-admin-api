@@ -47,12 +47,12 @@ var appSettings = appSettingsSection.Get<AppSettings>()
         "Please ensure 'AppSettings' section exists in appsettings.json");
 builder.Services.AddSingleton(appSettings);
 
-builder.Services.AddScoped<IEmailSender, Aiva.Admin.Function.Services.NoOpEmailSender>();
+builder.Services.AddScoped<IEmailSender, NoOpEmailSender>();
 
-builder.Services.AddHttpClient<IRealtimeNotificationService, NoOpRealtimeNotificationService>(client =>
+builder.Services.AddHttpClient<IRealtimeNotificationService, HttpRealtimeNotificationService>(client =>
 {
   // 'backend' matches the name defined in AspireHost
-  client.BaseAddress = new Uri("https://backend");
+  client.BaseAddress = new Uri("https://aiva-admin-api.azurewebsites.net");
 });
 
 builder.Services.AddMediator(options =>

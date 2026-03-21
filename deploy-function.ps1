@@ -3,22 +3,12 @@
 # Azure Function App Deployment Script
 # Assumes Function App is already created in Azure
 
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$FunctionAppName,
-    
-    [Parameter(Mandatory = $true)]
-    [string]$ResourceGroupName,
-    
-    [Parameter(Mandatory = $false)]
-    [string]$SubscriptionId,
-    
-    [Parameter(Mandatory = $false)]
-    [string]$ServiceBusConnectionString,
-    
-    [Parameter(Mandatory = $false)]
-    [switch]$SkipBuild
-)
+# Hardcoded values
+$FunctionAppName = "aiva-admin-function"
+$ResourceGroupName = "aiva"
+
+# Switch parameter (true/false)
+$SkipBuild = $true   # or $false
 
 # Set error handling
 $ErrorActionPreference = "Stop"

@@ -8,7 +8,7 @@ namespace Aiva.Admin.Api.UseCases.Conversations.Stream;
 public class StreamShoppingChatHandler(
     IRepository<Conversation> repository,
     IShoppingChatService shoppingChatService,
-    IServiceBusPublisher serviceBusPublisher,
+    ITitleGenerationQueueService titleGenerationQueueService,
     ILogger<StreamShoppingChatHandler> logger)
     : IRequestHandler<StreamShoppingChatCommand, Result<StreamShoppingChatResponse>>
 {
@@ -47,18 +47,7 @@ public class StreamShoppingChatHandler(
       // Save conversation
       await repository.UpdateAsync(conversation, cancellationToken);
 
-      if (conversation.IsReadyForTitleGeneration())
-      {
-        // Publish message to Service Bus
-        var titleMessage = new TitleGenerationMessage(
-            conversation.Id.Value,
-            DateTime.UtcNow);
-
-        await serviceBusPublisher.PublishAsync(
-            titleMessage,
-            "title-generation-queue",
-            cancellationToken);
-      }
+      await titleGenerationQueueService.QueueTitleGenerationIfReadyAsync(conversation, cancellationToken);
 
       // Map to response DTO
       var response = MapToResponse(shoppingResult.Value);

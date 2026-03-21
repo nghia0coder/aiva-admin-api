@@ -11,7 +11,8 @@ public class UploadMultipleFilesHandler(
     IRepository<FileMetadata> fileMetadataRepository,
     IReadRepository<Storage> storageRepository,
     IReadRepository<Folder> folderRepository,
-    IBlobStorageService blobStorageService)
+    IBlobStorageService blobStorageService,
+    IServiceBusPublisher serviceBusPublisher)
     : ICommandHandler<UploadMultipleFilesCommand, Result<IReadOnlyList<FileDTO>>>
 {
   public async ValueTask<Result<IReadOnlyList<FileDTO>>> Handle(
@@ -146,6 +147,14 @@ public class UploadMultipleFilesHandler(
       var metadataSpec = new FileMetadataByFileIdSpec(existingFile.Id);
       metadata = await fileMetadataRepository.FirstOrDefaultAsync(metadataSpec, cancellationToken)
                  ?? FileMetadata.Create(existingFile.Id);
+
+      // Re-queue for processing since file content changed
+      metadata.MarkAsQueued();
+      await fileMetadataRepository.UpdateAsync(metadata, cancellationToken);
+
+      // PUBLISH to Service Bus for reprocessing
+      var fileProcessingMessage = new FileProcessingMessage(existingFile.Id.Value, DateTime.UtcNow);
+      await serviceBusPublisher.PublishAsync(fileProcessingMessage, "file-processing-queue", cancellationToken);
     }
     else
     {
@@ -165,6 +174,10 @@ public class UploadMultipleFilesHandler(
       metadata = FileMetadata.Create(savedFile.Id);
       metadata.MarkAsQueued();
       await fileMetadataRepository.AddAsync(metadata, cancellationToken);
+
+      // PUBLISH to Service Bus for processing
+      var fileProcessingMessage = new FileProcessingMessage(savedFile.Id.Value, DateTime.UtcNow);
+      await serviceBusPublisher.PublishAsync(fileProcessingMessage, "file-processing-queue", cancellationToken);
     }
 
     return new FileDTO(
@@ -183,3 +196,5 @@ public class UploadMultipleFilesHandler(
         savedFile.CreatedOnUtc);
   }
 }
+
+public record FileProcessingMessage(int FileId, DateTime RequestedAt);
