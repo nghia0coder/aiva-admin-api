@@ -12,7 +12,6 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Aiva.Admin.Function/Aiva.Admin.Function.csproj" />
     <Project Path="src/Aiva.Admin.Api.Core/Aiva.Admin.Api.Core.csproj" />
     <Project Path="src/Aiva.Admin.Api.Infrastructure/Aiva.Admin.Api.Infrastructure.csproj" />
     <Project Path="src/Aiva.Admin.Api.UseCases/Aiva.Admin.Api.UseCases.csproj" />
@@ -33,4 +32,5 @@
     </Project>
     <Project Path="tests/Aiva.Admin.Api.UnitTests/Aiva.Admin.Api.UnitTests.csproj" />
   </Folder>
+  <Project Path="src/Aiva.Admin.Function/Aiva.Admin.Function.csproj" />
 </Solution>

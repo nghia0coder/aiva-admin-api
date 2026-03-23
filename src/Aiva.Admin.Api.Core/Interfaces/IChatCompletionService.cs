@@ -45,4 +45,18 @@ public interface IChatCompletionService
         string userPrompt,
         IEnumerable<ToolDefinition> tools,
         CancellationToken cancellationToken = default);
+
+  /// <summary>
+  /// Selects tools that the model needs to execute without generating text completion
+  /// </summary>
+  /// <param name="systemPrompt">System instructions for the AI</param>
+  /// <param name="userPrompt">User input</param>
+  /// <param name="tools">Available tools the model can select from</param>
+  /// <param name="cancellationToken">Cancellation token</param>
+  /// <returns>List of tools that the model wants to execute</returns>
+  Task<Result<List<ToolCall>>> SelectToolsAsync(
+      string systemPrompt,
+      string userPrompt,
+      IEnumerable<ToolDefinition> tools,
+      CancellationToken cancellationToken = default);
 }

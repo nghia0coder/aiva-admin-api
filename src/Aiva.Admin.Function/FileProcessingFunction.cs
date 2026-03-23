@@ -38,9 +38,12 @@ public class FileProcessingFunction
   {
     var logger = context.GetLogger("ProcessFile");
 
+    logger.LogInformation("Received file processing message: {MessageId}", message.Body.ToString());
+
     try
     {
       var fileProcessingMessage = JsonSerializer.Deserialize<FileProcessingMessage>(message.Body.ToString());
+      logger.LogInformation("Deserialized message for FileId: {FileId}", fileProcessingMessage?.FileId);
       var fileId = FileId.From(fileProcessingMessage!.FileId);
 
       using var scope = _scopeFactory.CreateScope();
@@ -55,10 +58,10 @@ public class FileProcessingFunction
       if (!extractResult.IsSuccess)
       {
         logger.LogWarning("Extraction failed for {FileId}: {Errors}",
-            fileId.Value, string.Join(", ", extractResult.Errors));
+            fileId.Value, string.Join(", ", extractResult.Value.ErrorMessage));
 
         // Let the message retry via Service Bus retry policy
-        throw new InvalidOperationException($"Text extraction failed: {string.Join(", ", extractResult.Errors)}");
+        throw new InvalidOperationException($"Text extraction failed: {string.Join(", ", extractResult.Value.ErrorMessage)}");
       }
 
       logger.LogInformation("Extracted {FileId}: {WordCount} words",

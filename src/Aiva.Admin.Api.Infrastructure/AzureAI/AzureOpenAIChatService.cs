@@ -309,4 +309,69 @@ public sealed class AzureOpenAIChatService : IChatCompletionService
       }
     };
   }
+
+  public async Task<Result<List<ToolCall>>> SelectToolsAsync(
+      string systemPrompt,
+      string userPrompt,
+      IEnumerable<ToolDefinition> tools,
+      CancellationToken cancellationToken = default)
+  {
+    try
+    {
+      var messages = new List<ChatMessage>();
+
+      if (!string.IsNullOrEmpty(systemPrompt))
+      {
+        messages.Add(new SystemChatMessage(systemPrompt));
+      }
+
+      if (!string.IsNullOrEmpty(userPrompt))
+      {
+        messages.Add(new UserChatMessage(userPrompt));
+      }
+
+      var options = new ChatCompletionOptions
+      {
+        MaxOutputTokenCount = _appSettings.AzureAI.MaxTokens,
+        Temperature = _appSettings.AzureAI.Temperature,
+        // Force the model to select tools only
+        ToolChoice = ChatToolChoice.CreateRequiredChoice()
+      };
+
+      // Convert ToolDefinitions to OpenAI ChatTool format
+      foreach (var toolDef in tools)
+      {
+        var chatTool = CreateChatToolFromDefinition(toolDef);
+        options.Tools.Add(chatTool);
+      }
+
+      _logger.LogDebug("Getting tool selection for {ToolCount} available tools", tools.Count());
+
+      var response = await _chatClient.CompleteChatAsync(messages, options, cancellationToken);
+
+      // This will only contain tool calls since we're using CreateRequiredChoice
+      if (response.Value.ToolCalls?.Any() == true)
+      {
+        var toolCalls = response.Value.ToolCalls
+            .Select(MapToToolCall)
+            .ToList();
+
+        _logger.LogInformation("Selected {ToolCallCount} tools", toolCalls.Count);
+        return Result.Success(toolCalls);
+      }
+
+      _logger.LogWarning("No tools were selected despite requiring tool choice");
+      return Result.Error("No tools were selected by the model");
+    }
+    catch (ClientResultException ex)
+    {
+      _logger.LogError(ex, "Azure OpenAI API error during tool selection");
+      return Result.Error($"AI service error: {ex.Message}");
+    }
+    catch (Exception ex)
+    {
+      _logger.LogError(ex, "Unexpected error during tool selection");
+      return Result.Error("An unexpected error occurred while selecting tools.");
+    }
+  }
 }

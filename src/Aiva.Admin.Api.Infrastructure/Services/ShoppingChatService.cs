@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
@@ -63,7 +63,9 @@ public class ShoppingChatService(
             AdditionalData = productSelection != null ? JsonSerializer.Serialize(productSelection) : null
           });
 
-      var standaloneQuestionResult = await chatService.GetCompletionAsync("", standaloneMessage);
+      var standaloneQuestionResult = await chatService.GetCompletionAsync(
+          PromptTemplates.SmartStoreStandaloneQuestionSystem,
+          standaloneMessage);
 
       if (string.IsNullOrWhiteSpace(standaloneQuestionResult))
       {
@@ -100,7 +102,7 @@ public class ShoppingChatService(
 
       var availableTools = shoppingToolService.GetAvailableTools();
 
-      var completionResult = await chatService.GetCompletionWithToolsAsync(
+      var toolSelectionResult = await chatService.SelectToolsAsync(
           toolPromptResult,
           dataStandalone.StandaloneQuestion,
           availableTools,
@@ -112,10 +114,10 @@ public class ShoppingChatService(
           cancellationToken);
 
       // Process tool execution if needed
-      if (completionResult.HasToolCalls)
+      if (toolSelectionResult.IsSuccess && toolSelectionResult.Value.Any())
       {
         var toolResults = await ExecuteToolCallsAsync(
-            completionResult.ToolCalls,
+            toolSelectionResult.Value,
             userName,
             cancellationToken);
 
@@ -136,7 +138,7 @@ public class ShoppingChatService(
         {
           TextResponse = finalResponse,
           HasProducts = true,
-          ToolsExecuted = completionResult.ToolCalls.Select(tc => tc.Function.Name).ToList(),
+          ToolsExecuted = toolSelectionResult.Value.Select(tc => tc.Function.Name).ToList(),
           ToolResults = toolResults,
         };
 
@@ -252,7 +254,7 @@ Your task:
     foreach (var toolResult in toolResults.Values)
     {
       var resultString = toolResult?.ToString() ?? string.Empty;
-      
+
       if (resultString.Contains("[CHECKOUT_ACTION]"))
       {
         // Extract URL from the result (format: "URL: http://localhost:5000")
@@ -268,7 +270,7 @@ Your task:
 
         // Clean up the text response to remove the marker
         result.TextResponse = result.TextResponse.Replace("[CHECKOUT_ACTION]", "").Trim();
-        
+
         logger.LogInformation("Checkout action detected. Will redirect to: {Url}", checkoutUrl);
         break;
       }
