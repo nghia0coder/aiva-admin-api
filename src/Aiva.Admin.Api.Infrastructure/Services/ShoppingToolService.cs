@@ -300,46 +300,80 @@ public class ShoppingToolService(
       var output = new StringBuilder();
       output.AppendLine("=== Shopping Cart ===");
 
+      decimal totalCartValue = 0;
+      int totalItems = cartItems.Count;
+      int totalQuantity = cartItems.Sum(x => x.Quantity);
+
       foreach (var item in cartItems)
       {
         var productId = item.ProductId.ToString();
+        var productName = !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName : $"Product #{productId}";
         var quantity = item.Quantity;
 
-        var productResult = await ExecuteGetProductInfoAsync(
-            new Dictionary<string, object> { ["product_id"] = productId },
-            cancellationToken);
+        // Use pre-calculated values from API response
+        var basePrice = item.BasePrice;
+        var attributeAdjustments = item.AttributeAdjustments;
+        var unitPrice = item.UnitPrice;
+        var subtotal = item.Subtotal;
 
-        string productName;
-        double? basePrice = null;
-        string? url = null;
+        totalCartValue += subtotal;
 
-        if (productResult.IsSuccess && !string.IsNullOrEmpty(productResult.Value))
+        output.AppendLine();
+        output.AppendLine($"🛒 {productName}");
+        output.AppendLine($"   • Product ID: {productId}");
+        if (!string.IsNullOrWhiteSpace(item.ProductSku))
         {
-          var (name, price, productUrl) = ParseProductInfo(productResult.Value, productId);
-          productName = name;
-          basePrice = price;
-          url = productUrl;
+          output.AppendLine($"   • SKU: {item.ProductSku}");
         }
-        else
+        output.AppendLine($"   • Quantity: {quantity}");
+        output.AppendLine($"   • Base Price: ${basePrice:F2}");
+
+        if (attributeAdjustments != 0)
         {
-          productName = "Not found";
+          output.AppendLine($"   • Price Adjustment: ${attributeAdjustments:+0.00;-0.00}");
+          output.AppendLine($"   • Unit Price: ${unitPrice:F2}");
+        }
+        else if (basePrice > 0)
+        {
+          output.AppendLine($"   • Unit Price: ${unitPrice:F2}");
         }
 
-        var subtotal = basePrice.HasValue ? basePrice.Value * quantity : (double?)null;
-        var subtotalStr = subtotal.HasValue ? $"{subtotal:F2}" : "N/A";
-
-        // 4. Merge: ProductName, BasePrice, URL, Quantity, Subtotal, RawAttributes
-        output.AppendLine($"• Product: {productName} (ID: {productId})");
-        output.AppendLine($"  Quantity: {quantity} | Price: {(basePrice?.ToString("F2") ?? "N/A")} | Subtotal: {subtotalStr}");
-        if (!string.IsNullOrEmpty(url))
-          output.AppendLine($"  URL: {url}");
-        if (item.RawAttributes != null && item.RawAttributes.Count > 0)
+        // Display selected attributes if any
+        if (item.SelectedAttributes?.Count > 0)
         {
-          foreach (var kv in item.RawAttributes)
-            output.AppendLine($"  Attribute {kv.Key}: [{string.Join(", ", kv.Value)}]");
+          output.AppendLine("   • Selected Options:");
+          foreach (var attribute in item.SelectedAttributes)
+          {
+            if (!string.IsNullOrWhiteSpace(attribute.AttributeName))
+            {
+              var attributeValues = attribute.Values?.Where(v => !string.IsNullOrWhiteSpace(v.Name)).ToList();
+              if (attributeValues?.Count > 0)
+              {
+                var valueNames = string.Join(", ", attributeValues.Select(v =>
+                {
+                  var valueName = v.Name;
+                  if (v.PriceAdjustment != 0)
+                  {
+                    valueName += $" ({v.PriceAdjustment:+$0.00;-$0.00})";
+                  }
+                  return valueName;
+                }));
+                output.AppendLine($"     - {attribute.AttributeName}: {valueNames}");
+              }
+            }
+          }
         }
+
+        output.AppendLine($"   • Subtotal: ${subtotal:F2}");
+        output.AppendLine($"   • Added: {item.CreatedOnUtc:MMM dd, yyyy HH:mm} UTC");
         output.AppendLine();
       }
+
+      output.AppendLine("═══════════════════════");
+      output.AppendLine($"Cart Summary:");
+      output.AppendLine($"   • Total Items: {totalItems}");
+      output.AppendLine($"   • Total Quantity: {totalQuantity}");
+      output.AppendLine($"   • Total Cart Value: ${totalCartValue:F2}");
 
       return Result.Success(output.ToString());
     }
@@ -350,7 +384,7 @@ public class ShoppingToolService(
     }
   }
 
-  private async Task<List<CartItemDto>> FetchCartItemsAsync(CancellationToken cancellationToken)
+  private async Task<List<ShoppingCartItemWithAttributes>> FetchCartItemsAsync(CancellationToken cancellationToken)
   {
     var endpoint = _shoppingApiConfig.Endpoints.GetCart;
     using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
@@ -358,44 +392,186 @@ public class ShoppingToolService(
 
     var response = await httpClient.SendAsync(request, cancellationToken);
     if (!response.IsSuccessStatusCode)
-      return new List<CartItemDto>();
+      return new List<ShoppingCartItemWithAttributes>();
 
     var json = await response.Content.ReadAsStringAsync(cancellationToken);
     var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-    var items = JsonSerializer.Deserialize<List<CartItemDto>>(json, options);
-    return items ?? new List<CartItemDto>();
+
+    // Deserialize to the wrapper response object that contains Items, TotalItems, etc.
+    var cartResponse = JsonSerializer.Deserialize<ShoppingCartWithAttributesResponse>(json, options);
+    return cartResponse?.Items ?? new List<ShoppingCartItemWithAttributes>();
   }
 
-  // Helper: parse product info JSON
-  private static (string name, double? price, string? url) ParseProductInfo(string productJson, string productId)
+  /// <summary>
+  /// Represents a shopping cart response with items and total price.
+  /// </summary>
+  public class ShoppingCartWithAttributesResponse
   {
-    try
-    {
-      using var doc = JsonDocument.Parse(productJson);
-      var root = doc.RootElement;
-      var name = root.TryGetProperty("Name", out var n) ? n.GetString() : root.TryGetProperty("name", out var n2) ? n2.GetString() : $"Product #{productId}";
-      double? price = null;
-      if (root.TryGetProperty("Price", out var p) || root.TryGetProperty("price", out p))
-        price = p.TryGetDouble(out var d) ? d : null;
-      var url = root.TryGetProperty("Url", out var u) ? u.GetString() : root.TryGetProperty("url", out u) ? u.GetString() : null;
-      return (name ?? $"Product #{productId}", price, url);
-    }
-    catch
-    {
-      return ($"Product #{productId}", null, null);
-    }
+    /// <summary>
+    /// Gets or sets the shopping cart items.
+    /// </summary>
+    public List<ShoppingCartItemWithAttributes> Items { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the total number of items in the cart.
+    /// </summary>
+    public int TotalItems { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total quantity of all items.
+    /// </summary>
+    public int TotalQuantity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cart subtotal (sum of all item subtotals).
+    /// </summary>
+    public decimal CartSubtotal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the currency code.
+    /// </summary>
+    public string? CurrencyCode { get; set; }
   }
 
-  private class CartItemDto
+  /// <summary>
+  /// Represents a shopping cart item with parsed product variant attributes.
+  /// </summary>
+  public class ShoppingCartItemWithAttributes
   {
+    /// <summary>
+    /// Gets or sets the shopping cart item identifier.
+    /// </summary>
     public int Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the product identifier.
+    /// </summary>
     public int ProductId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the product name.
+    /// </summary>
+    public string? ProductName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the product SKU.
+    /// </summary>
+    public string? ProductSku { get; set; }
+
+    /// <summary>
+    /// Gets or sets the quantity.
+    /// </summary>
     public int Quantity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the base product price (without attribute adjustments).
+    /// </summary>
+    public decimal BasePrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets the total price adjustments from selected attributes.
+    /// </summary>
+    public decimal AttributeAdjustments { get; set; }
+
+    /// <summary>
+    /// Gets or sets the unit price (base price + attribute adjustments).
+    /// </summary>
+    public decimal UnitPrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets the subtotal (unit price × quantity).
+    /// </summary>
+    public decimal Subtotal { get; set; }
+
+    /// <summary>
+    /// Gets or sets the customer entered price.
+    /// </summary>
+    public decimal CustomerEnteredPrice { get; set; }
+
+    /// <summary>
+    /// Gets or sets the shopping cart type identifier.
+    /// </summary>
     public int ShoppingCartTypeId { get; set; }
-    public Dictionary<string, object>? RawAttributes { get; set; }
-    public DateTime? CreatedOnUtc { get; set; }
-    public DateTime? UpdatedOnUtc { get; set; }
+
+    /// <summary>
+    /// Gets or sets the shopping cart type.
+    /// </summary>
+    public string? ShoppingCartType { get; set; }
+
+    /// <summary>
+    /// Gets or sets the date and time when the item was created.
+    /// </summary>
+    public DateTime CreatedOnUtc { get; set; }
+
+    /// <summary>
+    /// Gets or sets the date and time when the item was updated.
+    /// </summary>
+    public DateTime UpdatedOnUtc { get; set; }
+
+    /// <summary>
+    /// Gets or sets the selected product variant attributes.
+    /// </summary>
+    public List<SelectedProductAttribute> SelectedAttributes { get; set; } = new();
   }
+
+  /// <summary>
+  /// Represents a selected product variant attribute.
+  /// </summary>
+  public class SelectedProductAttribute
+  {
+    /// <summary>
+    /// Gets or sets the product variant attribute identifier.
+    /// </summary>
+    public int ProductVariantAttributeId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the product attribute identifier.
+    /// </summary>
+    public int ProductAttributeId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the attribute name (e.g., "Color", "Storage", "RAM").
+    /// </summary>
+    public string? AttributeName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the selected attribute values.
+    /// </summary>
+    public List<SelectedAttributeValue> Values { get; set; } = new();
+  }
+
+  /// <summary>
+  /// Represents a selected product variant attribute value.
+  /// </summary>
+  public class SelectedAttributeValue
+  {
+    /// <summary>
+    /// Gets or sets the product variant attribute value identifier.
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the value name (e.g., "Rose", "64GB", "8GB").
+    /// </summary>
+    public string? Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the color (if applicable).
+    /// </summary>
+    public string? Color { get; set; }
+
+    /// <summary>
+    /// Gets or sets the price adjustment.
+    /// </summary>
+    public decimal PriceAdjustment { get; set; }
+
+    /// <summary>
+    /// Gets or sets the weight adjustment.
+    /// </summary>
+    public decimal WeightAdjustment { get; set; }
+  }
+
+
 
   private static List<SearchAttributeDto> ParseSearchAttributes(object? value)
   {
