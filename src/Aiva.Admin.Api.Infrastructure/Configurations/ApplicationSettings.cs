@@ -279,7 +279,9 @@ public sealed class ShoppingApiConfiguration
 public class ShoppingApiEndpoints
 {
   public string AddToCart { get; set; } = "/odata/v1/shoppingcartitems/addtocart";
-  public string RemoveFromCart { get; set; } = "/api/cart/remove";
+  public string RemoveFromCart { get; set; } = "/odata/v1/shoppingcartitems({cartItemId})/deleteitem";
+  public string UpdateCart { get; set; } = "/odata/v1/shoppingcartitems({cartItemId})/updateitem";
+  public string ClearCart { get; set; } = "/odata/v1/shoppingcartitems/deletecart";
   public string SearchProducts { get; set; } = "/api/products/search";
   public string GetProductInfo { get; set; } = "/api/products/{productId}";
   public string GetCart { get; set; } = "/odata/v1/customers(6)/shoppingcartitemswithattributes";

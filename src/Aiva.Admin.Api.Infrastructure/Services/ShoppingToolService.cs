@@ -26,6 +26,8 @@ public class ShoppingToolService(
             CreateGetProductInfoTool(),
             CreateAddToCartTool(),
             CreateRemoveFromCartTool(),
+            CreateUpdateCartTool(),
+            CreateClearCartTool(),
             CreateGetCartTool(),
             CreateCheckoutTool()
         };
@@ -46,6 +48,8 @@ public class ShoppingToolService(
         "add_to_cart" => await ExecuteAddToCartAsync(parameters, userId, cancellationToken),
         "get_cart" => await ExecuteGetCartAsync(cancellationToken),
         "remove_from_cart" => await ExecuteRemoveFromCartAsync(parameters, userId, cancellationToken),
+        "update_cart" => await ExecuteUpdateCartAsync(parameters, userId, cancellationToken),
+        "clear_cart" => await ExecuteClearCartAsync(userId, cancellationToken),
         "checkout" => await ExecuteCheckoutAsync(userId, cancellationToken),
         _ => Result.Error($"Unknown function: {functionName}")
       };
@@ -140,16 +144,14 @@ public class ShoppingToolService(
       Function = new FunctionDefinition
       {
         Name = "remove_from_cart",
-        Description = "Remove a product from the user's shopping cart using cart item ID",
+        Description = "Remove a cart item completely from the user's shopping cart using cart item ID",
         Parameters = new
         {
           type = "object",
           properties = new
           {
             cart_item_id = new { type = "string", description = "The cart item ID to remove (from cart table)" },
-            product_id = new { type = "string", description = "The product ID (optional, for reference)" },
-            product_name = new { type = "string", description = "The product name (optional, for confirmation)" },
-            quantity = new { type = "integer", description = "Quantity to remove (default: remove all)" }
+            product_name = new { type = "string", description = "The product name (optional, for confirmation)" }
           },
           required = new[] { "cart_item_id" }
         }
@@ -165,6 +167,47 @@ public class ShoppingToolService(
       {
         Name = "checkout",
         Description = "Initiate checkout process when user explicitly wants to complete their purchase. Use when user says 'checkout', 'thanh toán', 'đặt hàng', 'mua luôn', 'proceed to checkout', or similar checkout intentions.",
+        Parameters = new
+        {
+          type = "object",
+          properties = new { },
+          required = Array.Empty<string>()
+        }
+      }
+    };
+  }
+
+  private static ToolDefinition CreateUpdateCartTool()
+  {
+    return new ToolDefinition
+    {
+      Function = new FunctionDefinition
+      {
+        Name = "update_cart",
+        Description = "Update cart item quantity. Use when user wants to change quantity of existing cart items.",
+        Parameters = new
+        {
+          type = "object",
+          properties = new
+          {
+            cart_item_id = new { type = "string", description = "The cart item ID to update (from cart table)" },
+            quantity = new { type = "integer", description = "New quantity for the cart item" },
+            product_name = new { type = "string", description = "Product name for confirmation (optional)" }
+          },
+          required = new[] { "cart_item_id", "quantity" }
+        }
+      }
+    };
+  }
+
+  private static ToolDefinition CreateClearCartTool()
+  {
+    return new ToolDefinition
+    {
+      Function = new FunctionDefinition
+      {
+        Name = "clear_cart",
+        Description = "Clear all items from the user's shopping cart completely. Use when user wants to empty their entire cart.",
         Parameters = new
         {
           type = "object",
@@ -652,22 +695,22 @@ public class ShoppingToolService(
     try
     {
       var cartItemId = GetStringValue(parameters["cart_item_id"])!;
-      var productId = GetStringValue(parameters.GetValueOrDefault("product_id"));
       var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Cart Item #{cartItemId}";
-      var quantity = GetIntValue(parameters.GetValueOrDefault("quantity"), 0); // 0 means remove all
 
+      // Hardcoded request body as specified
       var requestBody = new
       {
-        cartItemId,
-        productId,
-        quantity,
-        userId
+        resetCheckoutData = false,
+        removeInvalidCheckoutAttributes = false
       };
 
       var json = JsonSerializer.Serialize(requestBody);
       var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-      using var request = new HttpRequestMessage(HttpMethod.Post, _shoppingApiConfig.Endpoints.RemoveFromCart)
+      // Replace {cartItemId} in the endpoint URL
+      var endpoint = _shoppingApiConfig.Endpoints.RemoveFromCart.Replace("{cartItemId}", Uri.EscapeDataString(cartItemId));
+
+      using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
       {
         Content = content
       };
@@ -685,21 +728,8 @@ public class ShoppingToolService(
         // Build detailed success message with cart item information
         var successMessage = $"✅ Successfully removed from cart:\n" +
                            $"   • Cart Item ID: {cartItemId}\n" +
-                           $"   • Product: {productName}";
-
-        if (!string.IsNullOrEmpty(productId))
-        {
-          successMessage += $"\n   • Product ID: {productId}";
-        }
-
-        if (quantity > 0)
-        {
-          successMessage += $"\n   • Quantity removed: {quantity}";
-        }
-        else
-        {
-          successMessage += "\n   • Removed completely from cart";
-        }
+                           $"   • Product: {productName}\n" +
+                           $"   • Item removed completely from cart";
 
         return Result.Success(successMessage);
       }
@@ -712,6 +742,115 @@ public class ShoppingToolService(
     {
       logger.LogError(ex, "Error calling remove from cart API");
       return Result.Error($"Remove from cart failed: {ex.Message}");
+    }
+  }
+
+  private async Task<Result<string>> ExecuteUpdateCartAsync(
+    Dictionary<string, object> parameters,
+    string userId,
+    CancellationToken cancellationToken)
+  {
+    try
+    {
+      var cartItemId = GetStringValue(parameters["cart_item_id"])!;
+      var quantity = GetIntValue(parameters["quantity"]);
+      var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Cart Item #{cartItemId}";
+
+      // Build request body with hardcoded enabled: true
+      var requestBody = new
+      {
+        quantity = quantity,
+        enabled = true
+      };
+
+      var json = JsonSerializer.Serialize(requestBody);
+      var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+      // Replace {cartItemId} in the endpoint URL
+      var endpoint = _shoppingApiConfig.Endpoints.UpdateCart.Replace("{cartItemId}", Uri.EscapeDataString(cartItemId));
+
+      using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+      {
+        Content = content
+      };
+
+      AddAuthenticationHeader(request);
+
+      var response = await httpClient.SendAsync(request, cancellationToken);
+
+      if (response.IsSuccessStatusCode)
+      {
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogInformation("Successfully updated cart item {CartItemId} for user {UserId}",
+            cartItemId, userId);
+
+        // Build detailed success message with cart item information
+        var successMessage = $"✅ Successfully updated cart item:\n" +
+                           $"   • Cart Item ID: {cartItemId}\n" +
+                           $"   • Product: {productName}\n" +
+                           $"   • New Quantity: {quantity}";
+
+        return Result.Success(successMessage);
+      }
+
+      var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+      logger.LogWarning("Failed to update cart item. Status: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
+      return Result.Error($"Failed to update cart item: {response.StatusCode}");
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "Error calling update cart API");
+      return Result.Error($"Update cart failed: {ex.Message}");
+    }
+  }
+
+  private async Task<Result<string>> ExecuteClearCartAsync(
+    string userId,
+    CancellationToken cancellationToken)
+  {
+    try
+    {
+      // Hardcoded request body as specified
+      var requestBody = new
+      {
+        customerId = 6,
+        shoppingCartType = "1",
+        storeId = 0
+      };
+
+      var json = JsonSerializer.Serialize(requestBody);
+      var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+      using var request = new HttpRequestMessage(HttpMethod.Post, _shoppingApiConfig.Endpoints.ClearCart)
+      {
+        Content = content
+      };
+
+      AddAuthenticationHeader(request);
+
+      var response = await httpClient.SendAsync(request, cancellationToken);
+
+      if (response.IsSuccessStatusCode)
+      {
+        var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+        logger.LogInformation("Successfully cleared cart for user {UserId}", userId);
+
+        // Parse response to get number of deleted items if available
+        var successMessage = "🗑️ Successfully cleared your shopping cart:\n" +
+                           "   • All items have been removed from your cart\n" +
+                           "   • Your cart is now empty";
+
+        return Result.Success(successMessage);
+      }
+
+      var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+      logger.LogWarning("Failed to clear cart. Status: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
+      return Result.Error($"Failed to clear cart: {response.StatusCode}");
+    }
+    catch (Exception ex)
+    {
+      logger.LogError(ex, "Error calling clear cart API");
+      return Result.Error($"Clear cart failed: {ex.Message}");
     }
   }
 
@@ -832,6 +971,20 @@ public class ShoppingToolService(
       string str => double.TryParse(str, out var parsed) ? parsed : null,
       null => null,
       _ => double.TryParse(value.ToString(), out var parsed) ? parsed : null
+    };
+  }
+
+  private static bool GetBoolValue(object? value, bool defaultValue = false)
+  {
+    return value switch
+    {
+      JsonElement jsonElement => jsonElement.ValueKind == JsonValueKind.True || 
+                                (jsonElement.ValueKind == JsonValueKind.String && 
+                                 bool.TryParse(jsonElement.GetString(), out var parsed) && parsed),
+      bool boolValue => boolValue,
+      string str => bool.TryParse(str, out var parsed) ? parsed : defaultValue,
+      null => defaultValue,
+      _ => bool.TryParse(value.ToString(), out var parsed) ? parsed : defaultValue
     };
   }
 

@@ -1,4 +1,4 @@
-# Tool Selection Rules
+ # Tool Selection Rules
 
 Use these rules to decide **when** and **which** tool to call. Apply in priority order. If no tool matches, respond with text only.
 
@@ -73,19 +73,97 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 
 ## 4. remove_from_cart
 
-**Purpose:** Remove a product from the user's shopping cart.
+**Purpose:** Remove a cart item completely from the user's shopping cart.
 
 **When to call:**
 - User wants to remove item(s): "xóa khỏi giỏ", "remove", "bỏ", "delete from cart", v.v.
-- [additional_data] exists with products user wants to remove → remove those items.
+- User specifies cart item ID to remove from their cart.
 
 **Input:**
-- `product_id` (required).
-- `quantity` (optional, default: remove all).
+- `cart_item_id` (required) – The cart item ID to remove (from cart table).
+- `product_name` (optional) – Product name for confirmation.
+
+**Prerequisites:**
+- User must first call `get_cart` to see their cart items and cart item IDs.
+- Cart item ID must exist in user's current cart.
+
+**API Details:**
+- Uses OData endpoint: `/odata/v1/shoppingcartitems({cartItemId})/deleteitem`
+- Request body: `{ "resetCheckoutData": false, "removeInvalidCheckoutAttributes": false }`
+- Completely removes the cart item (no partial quantity removal)
+
+**When NOT to call:**
+- User wants to update quantity (use `update_cart` instead).
+- Cart item ID is unknown (prompt user to check cart first with `get_cart`).
+
+**Flow:**
+1. User requests to remove cart item.
+2. If cart item ID is known → call `remove_from_cart` directly.
+3. If cart item ID is unknown → call `get_cart` first to show cart items with their IDs, then ask user to specify which item to remove.
 
 ---
 
-## 5. get_cart
+## 5. update_cart
+
+**Purpose:** Update the quantity of an existing product in the user's shopping cart.
+
+**When to call:**
+- User wants to change/update/adjust quantity of existing cart items.
+- Trigger phrases: "cập nhật giỏ hàng", "thay đổi số lượng", "update cart", "change quantity", "adjust quantity", "modify", "edit cart", "increase", "decrease", "set quantity to", v.v.
+- User mentions specific cart item ID and new quantity.
+
+**Input:**
+- `cart_item_id` (required) – The cart item ID to update (from cart table).
+- `quantity` (required) – New quantity for the cart item.
+- `product_name` (optional) – Product name for confirmation.
+
+**Prerequisites:**
+- User must first call `get_cart` to see their cart items and cart item IDs.
+- Cart item ID must exist in user's current cart.
+
+**When NOT to call:**
+- User wants to add new products (use `add_to_cart` instead).
+- User wants to remove items completely (use `remove_from_cart` instead).
+- Cart item ID is unknown (prompt user to check cart first with `get_cart`).
+- User is asking about cart contents without updating (use `get_cart` instead).
+
+**Flow:**
+1. User requests to update cart quantity.
+2. If cart item ID is known → call `update_cart` directly.
+3. If cart item ID is unknown → call `get_cart` first to show cart items with their IDs, then ask user to specify which item to update.
+
+---
+
+## 6. clear_cart
+
+**Purpose:** Clear all items from the user's shopping cart completely.
+
+**When to call:**
+- User wants to empty their entire cart: "clear cart", "xóa hết giỏ hàng", "empty cart", "clear all items", "remove all", "delete all from cart", v.v.
+- User wants to start over with shopping.
+- User explicitly asks to clear/empty their cart.
+
+**Input:**
+- No parameters required.
+
+**API Details:**
+- Uses OData endpoint: `/odata/v1/shoppingcartitems/deletecart`
+- Request body: `{ "customerId": 6, "shoppingCartType": "1", "storeId": 0 }`
+- Completely removes all cart items from the shopping cart
+
+**When NOT to call:**
+- User wants to remove specific items (use `remove_from_cart` instead).
+- User wants to update quantities (use `update_cart` instead).
+- User is just asking about cart contents (use `get_cart` instead).
+
+**Flow:**
+1. User requests to clear/empty cart.
+2. Call `clear_cart` directly (no parameters needed).
+3. All cart items will be deleted.
+
+---
+
+## 7. get_cart
 
 **Purpose:** Returns the user's shopping cart with full product details (name, price, URL, quantity, subtotal).
 
@@ -104,7 +182,7 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 
 ---
 
-## 6. checkout
+## 8. checkout
 
 **Purpose:** Initiate checkout process and redirect user to checkout page.
 
@@ -129,9 +207,9 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 **Return:**
 - Success message with checkout URL for redirect action.
 
----
+------
 
-## 7. No tool – text response only
+## 9. No tool – text response only
 
 **When to use:**
 - Greetings: "xin chào", "hello", "hi".
@@ -157,6 +235,8 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 - **search_infors**: Call when user is searching or when ProductId must be resolved.
 - **get_product_info**: Call when user needs product details or ProductId validation.
 - **remove_from_cart**: Call when user clearly wants to remove items.
-- **GetEcomCartWS**: Call when user asks about cart/wishlist. Merge with search_infors/get_product_info to show ProductName, price, URL.
+- **update_cart**: Call when user wants to change/update quantity of existing cart items. Requires cart_item_id and new quantity.
+- **clear_cart**: Call when user wants to empty/clear their entire cart. No parameters required.
+- **get_cart**: Call when user asks about cart/wishlist. Shows cart items with cart_item_id for update/remove operations.
 - **checkout**: Call when user explicitly wants to checkout/complete purchase. Returns redirect URL.
 - **No tool**: Respond with text when no tool applies or more clarification is needed.
