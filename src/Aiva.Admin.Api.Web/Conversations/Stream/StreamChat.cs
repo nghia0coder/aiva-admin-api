@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Aiva.Admin.Api.Core.UserAggregate;
 using Aiva.Admin.Api.UseCases.Conversations.Stream;
 using Aiva.Admin.Api.Web.Common;
@@ -17,10 +17,26 @@ public class StreamChat(
   public override void Configure()
   {
     Post(StreamChatRequest.Route);
+    AllowFileUploads(); // Enable file uploads for image processing
     Summary(s =>
     {
-      s.Summary = "Stream AI response with Intent Routing";
-      s.Description = "Enterprise-grade streaming with SQL/RAG routing based on intent.";
+      s.Summary = "Stream AI response with Intent Routing and Image Support";
+      s.Description = """
+        Enterprise-grade streaming with SQL/RAG routing based on intent and image processing capabilities.
+
+        Features:
+        - Text message processing
+        - Image upload and analysis (up to 5 images, max 10MB each)
+        - Intent-based routing (Data Assistant for Admins, Shopping Assistant for Customers)
+        - Real-time streaming responses
+        - Visual shopping context integration
+
+        Supported image types: JPEG, PNG, BMP, GIF, WebP
+        """;
+      s.RequestParam(r => r.ConversationId, "Conversation identifier");
+      s.RequestParam(r => r.Message, "User's text message");
+      s.RequestParam(r => r.AdditionalUserData, "Additional context data (optional)");
+      s.RequestParam(r => r.HasImages, "Indicates if images are included (optional)");
     });
     Tags("Conversations");
   }
@@ -142,11 +158,59 @@ public class StreamChat(
 
   private async Task HandleShoppingAssistantFlow(StreamChatRequest request, string userName, CancellationToken ct)
   {
+    // Process uploaded images if any
+    var images = new List<ChatImageUpload>();
+    if (Files.Any())
+    {
+      // Validate image count
+      if (Files.Count() > StreamChatRequest.MaxImagesAllowed)
+      {
+        await streamingService.SendEventAsync(HttpContext, "error", new 
+        { 
+          message = $"Too many images. Maximum allowed: {StreamChatRequest.MaxImagesAllowed}" 
+        }, ct);
+        return;
+      }
+
+      foreach (var file in Files)
+      {
+        // Validate file size
+        if (file.Length > StreamChatRequest.MaxImageSizeBytes)
+        {
+          await streamingService.SendEventAsync(HttpContext, "error", new 
+          { 
+            message = $"Image '{file.Name}' is too large. Maximum size: {StreamChatRequest.MaxImageSizeBytes / 1024 / 1024}MB" 
+          }, ct);
+          return;
+        }
+
+        if (IsValidImageFile(file.ContentType))
+        {
+          logger.LogInformation("Processing uploaded image: {FileName} ({ContentType}, {Size} bytes)", 
+              file.Name, file.ContentType, file.Length);
+
+          var imageUpload = new ChatImageUpload(
+              FileName: file.Name,
+              ContentType: file.ContentType,
+              ImageStream: file.OpenReadStream(),
+              FileSizeBytes: file.Length);
+
+          images.Add(imageUpload);
+        }
+        else
+        {
+          logger.LogWarning("Skipping unsupported file type: {FileName} ({ContentType})", 
+              file.Name, file.ContentType);
+        }
+      }
+    }
+
     var command = new StreamShoppingChatCommand(
         request.ConversationId, 
         userName, 
         request.Message,
-        request.AdditionalUserData);
+        request.AdditionalUserData,
+        images.AsReadOnly());
     var result = await mediator.Send(command, ct);
 
     if (result.IsSuccess)
@@ -157,7 +221,9 @@ public class StreamChat(
       await streamingService.SendEventAsync(HttpContext, "message", new
       {
         content = response.TextResponse,
-        type = "text"
+        type = "text",
+        processedImages = response.ProcessedImages,
+        imageCount = images.Count
       }, ct);
 
       // Stream action if present (e.g., redirect to checkout)
@@ -176,5 +242,14 @@ public class StreamChat(
     {
       await streamingService.SendEventAsync(HttpContext, "error", new { message = result.ValidationErrors?.FirstOrDefault() }, ct);
     }
+  }
+
+  /// <summary>
+  /// Validate if uploaded file is a supported image type
+  /// </summary>
+  private static bool IsValidImageFile(string contentType)
+  {
+    var allowedTypes = new[] { "image/jpeg", "image/jpg", "image/png", "image/bmp", "image/gif", "image/webp" };
+    return allowedTypes.Contains(contentType.ToLowerInvariant());
   }
 }

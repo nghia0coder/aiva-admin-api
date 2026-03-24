@@ -22,6 +22,8 @@ public class AppSettings
   public SystemPromptSettings SystemPrompt { get; set; } = new();
   public IntentDetectionSettings IntentDetection { get; set; } = new();
   public ServiceBusSettings ServiceBus { get; set; } = new();
+  public AzureVisionConfiguration AzureVision { get; set; } = new();
+
 }
 
 public class ConnectionStringsSettings
@@ -281,4 +283,15 @@ public class ShoppingApiEndpoints
   public string SearchProducts { get; set; } = "/api/products/search";
   public string GetProductInfo { get; set; } = "/api/products/{productId}";
   public string GetCart { get; set; } = "/odata/v1/customers(6)/shoppingcartitemswithattributes";
+}
+
+
+/// <summary>
+/// Configuration for Azure Computer Vision
+/// </summary>
+public class AzureVisionConfiguration
+{
+  public const string SectionName = "AzureVision";
+  public string Endpoint { get; set; } = string.Empty;
+  public string ApiKey { get; set; } = string.Empty;
 }

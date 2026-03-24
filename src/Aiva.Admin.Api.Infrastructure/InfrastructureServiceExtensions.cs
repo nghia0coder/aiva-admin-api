@@ -196,6 +196,9 @@ public static class InfrastructureServiceExtensions
     services.AddScoped<IServiceBusPublisher, ServiceBusPublisher>();
     logger.LogInformation("Service Bus messaging configured");
 
+    services.AddScoped<IImageParsingService, Vision.AzureVisionService>();
+    logger.LogInformation("Azure Computer Vision configured");
+
 
 
     // Register IShoppingToolService separately to use the configured HttpClient

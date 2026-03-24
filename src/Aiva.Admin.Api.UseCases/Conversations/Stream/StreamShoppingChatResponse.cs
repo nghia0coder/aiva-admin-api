@@ -9,6 +9,7 @@ public class StreamShoppingChatResponse
   public string? AdditionalData { get; set; }
   public string? ActionType { get; set; }
   public Dictionary<string, string>? ActionPayload { get; set; }
+  public bool ProcessedImages { get; set; } = false;
 }
 
 // TODO: Implement these models based on your business requirements
