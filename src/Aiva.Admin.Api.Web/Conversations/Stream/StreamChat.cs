@@ -7,6 +7,15 @@ using Ardalis.SharedKernel;
 
 namespace Aiva.Admin.Api.Web.Conversations.Stream;
 
+/// <summary>
+/// Streaming chat endpoint with optional file upload support.
+/// 
+/// Supports two content types:
+/// 1. application/json - For text-only messages
+/// 2. multipart/form-data - For messages with image uploads
+/// 
+/// The endpoint automatically detects the content type and handles files accordingly.
+/// </summary>
 public class StreamChat(
     IMediator mediator,
     IStreamingService streamingService,
@@ -17,7 +26,8 @@ public class StreamChat(
   public override void Configure()
   {
     Post(StreamChatRequest.Route);
-    AllowFileUploads(); // Enable file uploads for image processing
+    // Remove AllowFileUploads() to handle both JSON and multipart requests
+    AllowFormData(); // This allows both JSON and multipart/form-data
     Summary(s =>
     {
       s.Summary = "Stream AI response with Intent Routing and Image Support";
@@ -25,13 +35,14 @@ public class StreamChat(
         Enterprise-grade streaming with SQL/RAG routing based on intent and image processing capabilities.
 
         Features:
-        - Text message processing
-        - Image upload and analysis (up to 5 images, max 10MB each)
+        - Text message processing (JSON or form-data)
+        - Image upload and analysis (up to 5 images, max 10MB each) via multipart/form-data
         - Intent-based routing (Data Assistant for Admins, Shopping Assistant for Customers)
         - Real-time streaming responses
         - Visual shopping context integration
 
         Supported image types: JPEG, PNG, BMP, GIF, WebP
+        Content-Type: application/json (text only) or multipart/form-data (with images)
         """;
       s.RequestParam(r => r.ConversationId, "Conversation identifier");
       s.RequestParam(r => r.Message, "User's text message");
@@ -61,6 +72,9 @@ public class StreamChat(
       }
 
       streamingService.ConfigureResponse(HttpContext);
+
+      // Log request content type for debugging
+      logger.LogDebug("Request Content-Type: {ContentType}", HttpContext.Request.ContentType);
 
       // Route based on user role
       if (currentUser.Role == UserRole.Admin)
@@ -158,10 +172,16 @@ public class StreamChat(
 
   private async Task HandleShoppingAssistantFlow(StreamChatRequest request, string userName, CancellationToken ct)
   {
-    // Process uploaded images if any
+    // Process uploaded images if any (only for multipart/form-data requests)
     var images = new List<ChatImageUpload>();
-    if (Files.Any())
+
+    // Check if this is a multipart request with files
+    var isMultipartRequest = HttpContext.Request.ContentType?.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase) == true;
+
+    if (isMultipartRequest && Files.Any())
     {
+      logger.LogInformation("Processing multipart request with {FileCount} files", Files.Count());
+
       // Validate image count
       if (Files.Count() > StreamChatRequest.MaxImagesAllowed)
       {
@@ -203,6 +223,14 @@ public class StreamChat(
               file.Name, file.ContentType);
         }
       }
+    }
+    else if (isMultipartRequest)
+    {
+      logger.LogInformation("Received multipart request with no files");
+    }
+    else
+    {
+      logger.LogInformation("Received JSON request (no file upload capability)");
     }
 
     var command = new StreamShoppingChatCommand(
