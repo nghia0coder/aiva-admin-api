@@ -158,6 +158,19 @@ public class StreamShoppingChatHandler(
     // Add visual shopping context with clear instructions
     messageBuilder.AppendLine("=== VISUAL SHOPPING CONTEXT ===");
     messageBuilder.AppendLine("The user has uploaded images to assist with their shopping inquiry. Please analyze the visual content to provide relevant product recommendations, comparisons, or shopping assistance.");
+
+    // Special instruction for cart-related queries with images
+    if (originalMessage.Contains("cart", StringComparison.OrdinalIgnoreCase) || 
+        originalMessage.Contains("giỏ", StringComparison.OrdinalIgnoreCase))
+    {
+      messageBuilder.AppendLine();
+      messageBuilder.AppendLine("CART + VISUAL CONTEXT GUIDANCE:");
+      messageBuilder.AppendLine("- If this is a cart inquiry with images, the user may want to compare cart items with uploaded product images");
+      messageBuilder.AppendLine("- Use visual context to suggest similar items, alternatives, or complementary products");
+      messageBuilder.AppendLine("- When displaying cart information, format as a table with Cart ID for easy management");
+      messageBuilder.AppendLine("- Reference visual similarities between cart items and uploaded images");
+    }
+
     messageBuilder.AppendLine();
 
     foreach (var context in imageContexts)

@@ -140,17 +140,18 @@ public class ShoppingToolService(
       Function = new FunctionDefinition
       {
         Name = "remove_from_cart",
-        Description = "Remove a product from the user's shopping cart",
+        Description = "Remove a product from the user's shopping cart using cart item ID",
         Parameters = new
         {
           type = "object",
           properties = new
           {
-            product_id = new { type = "string", description = "The ID of the product to remove" },
-            product_name = new { type = "string", description = "The name of the product to remove" },
-            quantity = new { type = "integer", description = "Quantity to remove" }
+            cart_item_id = new { type = "string", description = "The cart item ID to remove (from cart table)" },
+            product_id = new { type = "string", description = "The product ID (optional, for reference)" },
+            product_name = new { type = "string", description = "The product name (optional, for confirmation)" },
+            quantity = new { type = "integer", description = "Quantity to remove (default: remove all)" }
           },
-          required = new[] { "product_id", "product_name" }
+          required = new[] { "cart_item_id" }
         }
       }
     };
@@ -298,50 +299,34 @@ public class ShoppingToolService(
       }
 
       var output = new StringBuilder();
-      output.AppendLine("=== Shopping Cart ===");
+      output.AppendLine("=== SHOPPING CART TABLE ===");
+      output.AppendLine("Format this as a table with the following columns: Cart ID | Product | SKU | Qty | Unit Price | Attributes | Subtotal | Actions");
+      output.AppendLine();
 
       decimal totalCartValue = 0;
       int totalItems = cartItems.Count;
       int totalQuantity = cartItems.Sum(x => x.Quantity);
 
+      // Generate table data in structured format for AI to convert to table
+      output.AppendLine("CART_TABLE_DATA_START");
+
       foreach (var item in cartItems)
       {
         var productId = item.ProductId.ToString();
         var productName = !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName : $"Product #{productId}";
+        var cartItemId = item.Id; // This is the cart item ID
         var quantity = item.Quantity;
-
-        // Use pre-calculated values from API response
-        var basePrice = item.BasePrice;
-        var attributeAdjustments = item.AttributeAdjustments;
         var unitPrice = item.UnitPrice;
         var subtotal = item.Subtotal;
+        var sku = item.ProductSku ?? "N/A";
 
         totalCartValue += subtotal;
 
-        output.AppendLine();
-        output.AppendLine($"🛒 {productName}");
-        output.AppendLine($"   • Product ID: {productId}");
-        if (!string.IsNullOrWhiteSpace(item.ProductSku))
-        {
-          output.AppendLine($"   • SKU: {item.ProductSku}");
-        }
-        output.AppendLine($"   • Quantity: {quantity}");
-        output.AppendLine($"   • Base Price: ${basePrice:F2}");
-
-        if (attributeAdjustments != 0)
-        {
-          output.AppendLine($"   • Price Adjustment: ${attributeAdjustments:+0.00;-0.00}");
-          output.AppendLine($"   • Unit Price: ${unitPrice:F2}");
-        }
-        else if (basePrice > 0)
-        {
-          output.AppendLine($"   • Unit Price: ${unitPrice:F2}");
-        }
-
-        // Display selected attributes if any
+        // Build attributes string
+        var attributesText = "None";
         if (item.SelectedAttributes?.Count > 0)
         {
-          output.AppendLine("   • Selected Options:");
+          var attributePairs = new List<string>();
           foreach (var attribute in item.SelectedAttributes)
           {
             if (!string.IsNullOrWhiteSpace(attribute.AttributeName))
@@ -358,22 +343,34 @@ public class ShoppingToolService(
                   }
                   return valueName;
                 }));
-                output.AppendLine($"     - {attribute.AttributeName}: {valueNames}");
+                attributePairs.Add($"{attribute.AttributeName}: {valueNames}");
               }
             }
           }
+          if (attributePairs.Count > 0)
+          {
+            attributesText = string.Join("; ", attributePairs);
+          }
         }
 
-        output.AppendLine($"   • Subtotal: ${subtotal:F2}");
-        output.AppendLine($"   • Added: {item.CreatedOnUtc:MMM dd, yyyy HH:mm} UTC");
-        output.AppendLine();
+        // Format as structured data for table conversion
+        output.AppendLine($"ROW|{cartItemId}|{productName} (ID: {productId})|{sku}|{quantity}|${unitPrice:F2}|{attributesText}|${subtotal:F2}|Remove");
       }
 
-      output.AppendLine("═══════════════════════");
-      output.AppendLine($"Cart Summary:");
-      output.AppendLine($"   • Total Items: {totalItems}");
-      output.AppendLine($"   • Total Quantity: {totalQuantity}");
-      output.AppendLine($"   • Total Cart Value: ${totalCartValue:F2}");
+      output.AppendLine("CART_TABLE_DATA_END");
+      output.AppendLine();
+
+      output.AppendLine("CART_SUMMARY:");
+      output.AppendLine($"Total Items: {totalItems} | Total Quantity: {totalQuantity} | Total Value: ${totalCartValue:F2}");
+      output.AppendLine();
+
+      output.AppendLine("INSTRUCTIONS_FOR_AI:");
+      output.AppendLine("1. Convert the ROW data above into a properly formatted table");
+      output.AppendLine("2. Include the Cart ID column (first column) which shows the cart item identifier for removal operations");
+      output.AppendLine("3. Make the table visually appealing with proper alignment");
+      output.AppendLine("4. Add action buttons or links for removing items using the Cart ID");
+      output.AppendLine("5. Display the cart summary below the table");
+      output.AppendLine("6. Use the Cart ID when user wants to remove items from cart");
 
       return Result.Success(output.ToString());
     }
@@ -654,15 +651,17 @@ public class ShoppingToolService(
   {
     try
     {
-      var productId = GetStringValue(parameters["product_id"])!;
-      var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Product #{productId}";
-      var quantity = GetIntValue(parameters.GetValueOrDefault("quantity"), 1);
+      var cartItemId = GetStringValue(parameters["cart_item_id"])!;
+      var productId = GetStringValue(parameters.GetValueOrDefault("product_id"));
+      var productName = GetStringValue(parameters.GetValueOrDefault("product_name")) ?? $"Cart Item #{cartItemId}";
+      var quantity = GetIntValue(parameters.GetValueOrDefault("quantity"), 0); // 0 means remove all
 
       var requestBody = new
       {
-        userId,
+        cartItemId,
         productId,
-        quantity
+        quantity,
+        userId
       };
 
       var json = JsonSerializer.Serialize(requestBody);
@@ -680,20 +679,34 @@ public class ShoppingToolService(
       if (response.IsSuccessStatusCode)
       {
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        logger.LogInformation("Successfully removed product {ProductId} ({ProductName}) from cart for user {UserId}",
-            productId, productName, userId);
+        logger.LogInformation("Successfully removed cart item {CartItemId} for user {UserId}",
+            cartItemId, userId);
 
-        // Build detailed success message with product information
+        // Build detailed success message with cart item information
         var successMessage = $"✅ Successfully removed from cart:\n" +
-                           $"   • Product: {productName}\n" +
-                           $"   • Product ID: {productId}\n" +
-                           $"   • Quantity removed: {quantity}";
+                           $"   • Cart Item ID: {cartItemId}\n" +
+                           $"   • Product: {productName}";
+
+        if (!string.IsNullOrEmpty(productId))
+        {
+          successMessage += $"\n   • Product ID: {productId}";
+        }
+
+        if (quantity > 0)
+        {
+          successMessage += $"\n   • Quantity removed: {quantity}";
+        }
+        else
+        {
+          successMessage += "\n   • Removed completely from cart";
+        }
+
         return Result.Success(successMessage);
       }
 
       var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-      logger.LogWarning("Failed to remove product from cart. Status: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
-      return Result.Error($"Failed to remove product from cart: {response.StatusCode}");
+      logger.LogWarning("Failed to remove cart item. Status: {StatusCode}, Error: {Error}", response.StatusCode, errorContent);
+      return Result.Error($"Failed to remove cart item: {response.StatusCode}");
     }
     catch (Exception ex)
     {

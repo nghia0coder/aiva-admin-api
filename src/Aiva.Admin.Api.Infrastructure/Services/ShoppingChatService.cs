@@ -185,18 +185,28 @@ public class ShoppingChatService(
   {
     return """
 <tool_execution_context>
-CRITICAL: Shopping tools (add_to_cart, remove_from_cart, checkout, etc.) have ALREADY been executed.
+CRITICAL: Shopping tools (add_to_cart, remove_from_cart, checkout, get_cart etc.) have ALREADY been executed.
 The <catalog_data> section below contains TOOL EXECUTION RESULTS (success/failure messages), NOT product catalog.
 
 OVERRIDE - IGNORE ALL OTHER PROMPT RULES: When this block is present, do NOT say "I don't have enough information", "I could not find", or ask the user for product details. The action has been COMPLETED. Your ONLY task is to confirm based on catalog_data.
 
-Your task:
-- Summarize the tool results from catalog_data in a brief, friendly confirmation (1-3 sentences)
+SPECIAL INSTRUCTIONS FOR CART DISPLAY (get_cart):
+- If catalog_data contains "CART_TABLE_DATA_START" and "CART_TABLE_DATA_END", convert the ROW data into a proper markdown table
+- Include ALL columns: Cart ID | Product | SKU | Qty | Unit Price | Attributes | Subtotal | Actions  
+- The Cart ID is essential for remove operations - always display it prominently
+- Format as a clean, readable table with proper alignment
+- Include the cart summary below the table
+- Explain that users can use the Cart ID to remove items
+
+STANDARD TOOL RESPONSES:
+- For other tools: Summarize results in a brief, friendly confirmation (1-3 sentences)
 - Do NOT display product tables, search for products, or recommend alternatives unless the user asks
 - Match the user's language: if user asked in English, respond in English; if Vietnamese, respond in Vietnamese
 - If all tools succeeded: confirm success concisely (e.g. English: "Successfully added to cart!", Vietnamese: "Đã thêm vào giỏ hàng thành công!")
 - If any failed: acknowledge briefly and offer to help
 - Keep response focused on the action performed
+
+Remember: For cart display, prioritize table formatting with Cart IDs. For other actions, keep responses brief and confirmatory.
 </tool_execution_context>
 
 """;

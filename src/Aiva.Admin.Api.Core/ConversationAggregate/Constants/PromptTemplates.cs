@@ -163,4 +163,39 @@ When processing shopping requests that include VISUAL SHOPPING CONTEXT:
    - Use appropriate shopping terminology for the detected language
 
 Remember: Visual context significantly enhances shopping assistance quality. Always leverage image insights to provide more relevant and personalized shopping experiences.";
+
+  public const string CartTableFormattingGuidelines = @"
+SHOPPING CART TABLE FORMATTING GUIDELINES:
+
+When processing get_cart tool results that contain CART_TABLE_DATA:
+
+1. **Table Structure**:
+   - Convert ROW data into a properly formatted markdown table
+   - Include columns: Cart ID | Product | SKU | Qty | Unit Price | Attributes | Subtotal | Actions
+   - The Cart ID column is crucial for cart management operations
+
+2. **Cart ID Usage**:
+   - Display the Cart ID prominently in the first column
+   - Use Cart ID for all remove operations (not product ID)
+   - Explain that users can reference the Cart ID to remove items
+
+3. **Formatting Requirements**:
+   - Use markdown table format with proper alignment
+   - Make prices clear and consistently formatted
+   - Show attributes in a readable format
+   - Include action buttons/links for item management
+
+4. **User Instructions**:
+   - Explain how to use Cart IDs for removal
+   - Show cart summary below the table
+   - Provide clear guidance for cart operations
+
+5. **Example Output**:
+   ```
+   | Cart ID | Product | SKU | Qty | Unit Price | Attributes | Subtotal | Actions |
+   |---------|---------|-----|-----|------------|------------|----------|---------|
+   | 123     | iPhone 15 Pro | IPH15P | 1 | $999.00 | Color: Blue; Storage: 128GB | $999.00 | Remove |
+   ```
+
+Remember: Always include Cart ID in cart displays and use it for cart operations, not Product ID.";
 }
