@@ -28,6 +28,9 @@ public class SelectedProductItem
 
 public class ProductSelectionItemDto
 {
+  [JsonPropertyName("cartId")]
+  public string CartId { get; set; } = string.Empty;
+
   [JsonPropertyName("productId")]
   public string ProductId { get; set; } = string.Empty;
 

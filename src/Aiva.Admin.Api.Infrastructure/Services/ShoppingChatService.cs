@@ -191,12 +191,50 @@ The <catalog_data> section below contains TOOL EXECUTION RESULTS (success/failur
 OVERRIDE - IGNORE ALL OTHER PROMPT RULES: When this block is present, do NOT say "I don't have enough information", "I could not find", or ask the user for product details. The action has been COMPLETED. Your ONLY task is to confirm based on catalog_data.
 
 SPECIAL INSTRUCTIONS FOR CART DISPLAY (get_cart):
-- If catalog_data contains "CART_TABLE_DATA_START" and "CART_TABLE_DATA_END", convert the ROW data into a proper markdown table
-- Include ALL columns: Cart ID | Product | SKU | Qty | Unit Price | Attributes | Subtotal | Actions  
+- If catalog_data contains "CART_TABLE_DATA_START" and "CART_TABLE_DATA_END", convert the ROW data into an HTML table (NOT markdown table)
+- Include ALL columns with interactive elements: Select | Cart ID | Product | SKU | Quantity Controls | Unit Price | Attributes | Subtotal
 - The Cart ID is essential for remove operations - always display it prominently
-- Format as a clean, readable table with proper alignment
-- Include the cart summary below the table
-- Explain that users can use the Cart ID to remove items
+- Format as clean, valid HTML that can be rendered directly
+
+INTERACTIVE ELEMENTS FOR CART TABLE:
+- Selection Column: use a real checkbox element for each row, for example `<input type="checkbox" value="{cartId}" checked="checked">`
+- Quantity Controls: use an editable number input field that users can directly type into or use browser increment/decrement arrows, for example `<input type="number" min="1" value="{quantity}" data-cart-id="{cartId}" style="width: 60px; padding: 4px; text-align: center;">`
+- Action Buttons: use real remove button element, for example `<button type="button" onclick="removeCartItem({cartId})">🗑️ Remove</button>`
+- Bulk Actions: At table bottom, show options like "Remove Selected" and "Update Quantities"
+
+EXAMPLE CART TABLE FORMAT (HTML):
+```
+<table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%;">
+  <thead>
+    <tr>
+      <th>Select</th><th>Cart ID</th><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit Price</th><th>Attributes</th><th>Subtotal</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><input type="checkbox" value="123" checked="checked"></td>
+      <td>123</td>
+      <td>iPhone 15 (ID: 15)</td>
+      <td>IP15-128</td>
+      <td style="text-align: center;">
+        <input type="number" min="1" value="2" data-cart-id="123" style="width: 60px; padding: 4px; text-align: center;">
+      </td>
+      <td>$799.00</td>
+      <td>128GB, Blue</td>
+      <td>$1,598.00</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+- Include the cart summary below the table with totals
+- Explain that users can:
+  * Select items using checkboxes for bulk operations
+  * Adjust quantities by directly editing the number input field (type new value or use browser arrows)
+  * Remove individual items using the remove button
+  * Use Cart ID for precise remove operations in voice commands
+- CRITICAL: Always use `<input type="number">` for quantity controls so users can directly edit values inline
+- Never use plain text quantity controls like "🔺 3 🔻" or "[+] 3 [-]" or separate increment/decrement buttons
 
 STANDARD TOOL RESPONSES:
 - For other tools: Summarize results in a brief, friendly confirmation (1-3 sentences)
