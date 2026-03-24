@@ -357,6 +357,9 @@ public class ShoppingToolService(
       {
         var productId = item.ProductId.ToString();
         var productName = !string.IsNullOrWhiteSpace(item.ProductName) ? item.ProductName : $"Product #{productId}";
+
+        logger.LogInformation("Processing product {ProductId}: {ProductName}", productId, productName);
+
         var cartItemId = item.Id; // This is the cart item ID
         var quantity = item.Quantity;
         var unitPrice = item.UnitPrice;
@@ -978,8 +981,8 @@ public class ShoppingToolService(
   {
     return value switch
     {
-      JsonElement jsonElement => jsonElement.ValueKind == JsonValueKind.True || 
-                                (jsonElement.ValueKind == JsonValueKind.String && 
+      JsonElement jsonElement => jsonElement.ValueKind == JsonValueKind.True ||
+                                (jsonElement.ValueKind == JsonValueKind.String &&
                                  bool.TryParse(jsonElement.GetString(), out var parsed) && parsed),
       bool boolValue => boolValue,
       string str => bool.TryParse(str, out var parsed) ? parsed : defaultValue,

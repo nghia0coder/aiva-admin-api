@@ -1,9 +1,10 @@
-﻿using Ardalis.Result;
+using Ardalis.Result;
 
 namespace Aiva.Admin.Api.Infrastructure.SystemPrompts;
 
 using Core.Interfaces;
 using Core.SystemPromptAggregate;
+using Microsoft.Extensions.Hosting;
 
 /// <summary>
 /// File-based system prompt service for quick testing without database.
@@ -13,7 +14,7 @@ public sealed class FileSystemPromptService : ISystemPromptService
 {
   private readonly ILogger<FileSystemPromptService> _logger;
   private readonly Dictionary<string, string> _promptCache = new();
-  private readonly string _baseDirectory;
+  private readonly string _promptsDirectory;
 
   // Mapping of prompt keys to file names
   private readonly Dictionary<string, string> _promptFileMap = new()
@@ -28,14 +29,12 @@ public sealed class FileSystemPromptService : ISystemPromptService
   };
 
   public FileSystemPromptService(
+      IHostEnvironment hostEnvironment,
       ILogger<FileSystemPromptService> logger)
   {
     _logger = logger;
-
-    // Get the base directory (solution root)
-    // When running, the working directory is typically src/Aiva.Admin.Api.Web/bin/Debug/net10.0
-    // We need to go up to the solution root, then into prompts/
-    _baseDirectory = AppContext.BaseDirectory;
+    // Resolve prompts from app content root so this works in local/dev and Azure.
+    _promptsDirectory = Path.Combine(hostEnvironment.ContentRootPath, "prompts");
   }
 
   public async Task<Result<string>> GetActivePromptContentAsync(
@@ -62,12 +61,7 @@ public sealed class FileSystemPromptService : ISystemPromptService
         return GetFallbackPrompt(key);
       }
 
-      // Build file path: go up to solution root, then into prompts folder
-      // From bin/Debug/net10.0 -> go up to solution root
-      var solutionRoot = Path.GetFullPath(
-          Path.Combine(_baseDirectory, "..", "..", "..", "..", ".."));
-
-      var promptsPath = Path.Combine(solutionRoot, "prompts", fileName);
+      var promptsPath = Path.Combine(_promptsDirectory, fileName);
 
       if (!File.Exists(promptsPath))
       {
