@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Core.ConversationAggregate.Constants;
+namespace Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 
 public static class PromptTemplates
 {
@@ -54,9 +54,23 @@ public static class PromptTemplates
 the <chat_history>, and <additional_user_data>, your task is to generate a queryString and a standaloneQuestion. Your response format is always a JSON object described in the <returned_format>. You MUST ALWAYS follow the guidelines below to do your tasks:
     <guidelines_for_standalone>
     - Your goal is to create a standaloneQuestion that includes the full meaning and context of the user's intent, even if they did not explicitly restate it.
-    - If the <chat_history> is empty, simply return the <new_question> as the standalone question.
+    - If the <chat_history> is empty, base the standalone question on <new_question> only (still apply visual grounding rules below when applicable).
     - If the <new_question> is related to the <chat_history>, always synthesize a full standalone question that incorporates these past contexts.
     - Do not answer the <new_question>. Your only task is to rephrase it into a full, self-contained question.
+    
+    - CRITICAL — <visual_product_grounding> (image-derived **product** keywords only): If <new_question> contains a <visual_product_grounding> block, those terms describe **merchandise** (device, brand, model, color, materials, specs) — they intentionally exclude holder, hands, outdoor/indoor, foliage, or photo context. You MUST:
+      1. Treat those keywords as the concrete **product** identity. Prefer specific identifiers from the list (brand, model family, finish) over generic ""cell phone"" when the list contains them.
+      2. Merge with <user_message>: if the user mentions **use cases** (e.g. outdoor, handheld, rugged), keep that as **their requirement** — but **do not** treat outdoor/handheld as coming from the image grounding. Anchor the product with grounding keywords, then add the user's use-case words. Example pattern: ""[product from grounding] suitable for [user's outdoor/handheld/… requirement]"" — not ""a cell phone for outdoor use"" when grounding lists iPhone 15 Pro / titanium / triple camera.
+      3. The standaloneQuestion must use grounding keywords for **what the product is** — never vague ""the one shown"", ""held by a person"", ""in the photo"", ""this item"".
+      4. If the user asks for something ""similar"" or ""like"" what they showed, rewrite using grounding terms as the reference product, never ""similar to the one in the image"".
+      5. NEVER output phrases like 'shown in the image', 'from the picture', 'uploaded photo', 'close-up image', 'held by a person' in the standaloneQuestion.
+
+    - CRITICAL FOR LEGACY VISUAL CONTEXT: If <new_question> still contains === VISUAL SHOPPING CONTEXT === (full block), use Visual Description, Product Features, Detected Items, Text/Brands Visible, and ""Image search keywords"" the same way: concrete details only, no image references.
+    
+    - Example transformation:
+      <user_message>: 'Can you help me find a cell phone similar to the one shown being held by a person?'
+      <visual_product_grounding>: smartphone; mobile phone; electronics; black
+      Output standaloneQuestion: 'Can you help me find smartphones similar to a black smartphone (mobile phone)?' or equivalent using the actual keywords provided — never mention the image or the person holding it.
     </guidelines_for_standalone>
 
     <guidelines_for_querystring>
@@ -64,6 +78,10 @@ the <chat_history>, and <additional_user_data>, your task is to generate a query
     - Each keyword should be clear, concise, and unique in meaning (no synonyms or repetition).
     - queryString should include keywords related to the products in [additional_user_data], as well as any action-oriented terms in <new_question> (e.g., thanh toán, mua hàng).
     - Do not repeat the standaloneQuestion content in the queryString.
+    - If <visual_product_grounding> is present, EVERY semicolon-separated keyword from that block MUST appear in queryString (you may add terms from <user_message> or <chat_history> such as use-case words; do not drop **product** keywords from grounding).
+    - Do not add scene-only terms (outdoor, handheld, nature, background) to queryString **unless** they appear in <user_message> or <chat_history> — those are user intent, not vision **product** extraction.
+    - If only === VISUAL SHOPPING CONTEXT === is present, extract keywords from ""Image search keywords"", Visual Description, Product Features, Detected Items, and Text/Brands Visible.
+    - NEVER include generic terms like 'image', 'picture', 'photo', 'uploaded', 'close-up' in queryString.
     </guidelines_for_querystring>
 
     <returned_format>
@@ -83,7 +101,7 @@ the <chat_history>, and <additional_user_data>, your task is to generate a query
 
     <new_question>
      @{chat_input}
-    </new_question>""
+    </new_question>
 
     <full_name>
     @{full_name}
@@ -109,11 +127,15 @@ SMARTSTORE PLATFORM CONTEXT:
 - Features: Product comparisons, reviews, wishlist, promotional offers, payment options
 
 VISUAL SHOPPING SUPPORT:
-- When processing messages with VISUAL SHOPPING CONTEXT, incorporate image details into your analysis
-- Product images should influence keyword generation and question formation
-- Consider visual features (colors, brands, styles) mentioned in image analysis
-- Generate search terms that reflect both textual intent and visual product characteristics
-- Maintain shopping context from images when forming standalone questions
+- <visual_product_grounding> lists **product/catalog** terms only (vision pipeline strips holder, environment, and photo context). You MUST fold them into queryString and standaloneQuestion as the **product identity**.
+- When the user also states **use requirements** (outdoor, handheld, rugged, battery life), combine: product from grounding + requirement from their text — do **not** collapse everything into generic ""cell phone or smartphone"" when grounding has brand/model/material cues.
+- When processing VISUAL SHOPPING CONTEXT (legacy), same rule: merchandise attributes from ""Image search keywords"" and product fields, not scene.
+- CRITICAL: DO NOT reference the uploaded image, a person holding an object, or the photo in standalone questions
+- Use brand name, model, color/finish, materials, and device type from the keywords
+- Example: Grounding ""iPhone; Pro; titanium; triple; LiDAR"" + user ""outdoor handheld"" → ask about that **iPhone Pro-line / titanium** product suitable for outdoor handheld use — not only ""smartphone for outdoor"".
+- Extract and use: brand names, model numbers, colors, materials, distinctive features from image analysis
+- If image analysis provides product details, treat them as if the user explicitly mentioned them
+- Generate search terms that reflect concrete visual product characteristics, not image references
 
 TASK FOCUS:
 - Transform customer queries into self-contained shopping questions
@@ -121,7 +143,20 @@ TASK FOCUS:
 - Include product context from previous conversations when relevant
 - Generate search-optimized keywords for SmartStore catalog
 - Maintain shopping workflow continuity across conversation turns
-- Integrate visual product context when images are provided
+- When images are provided: extract specific product attributes (brand, model, color, type) from image analysis and integrate them as explicit details in the standalone question, NOT as image references
+
+EXAMPLES OF VISUAL CONTEXT INTEGRATION:
+BAD: Could you check if the cell phone shown in the uploaded image is available?
+GOOD: Could you check if the Samsung Galaxy S24 in black is available?
+
+BAD: Can you help me find a cell phone similar to the one shown being held by a person?
+GOOD: Can you help me find smartphones similar to [use every keyword from visual_product_grounding, e.g. black smartphone, mobile phone]?
+
+BAD: Is this product from the picture in stock?
+GOOD: Is the Nike Air Max 270 in white/blue colorway in stock?
+
+BAD: I want to buy the watch in the image
+GOOD: I want to buy the Apple Watch Series 9 in silver aluminum
 
 QUALITY STANDARDS:
 - Standalone questions must be complete and contextually rich
@@ -129,7 +164,8 @@ QUALITY STANDARDS:
 - Preserve customer's shopping intent and urgency
 - Handle multilingual shopping terminology appropriately
 - Focus exclusively on SmartStore e-commerce functionality
-- When images are present, ensure visual context influences search strategy
+- When images are present, extract concrete product identifiers (brand, model, features) and embed them directly in the question
+- NEVER reference images directly - always use extracted product details instead
 
 Remember: Every response should be optimized for SmartStore shopping experience and product discovery, leveraging both textual and visual context when available.";
 

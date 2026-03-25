@@ -1,4 +1,4 @@
-﻿namespace Aiva.Admin.Api.Core.Interfaces;
+namespace Aiva.Admin.Api.Core.Interfaces;
 
 /// <summary>
 /// Service for parsing images to extract textual context for shopping queries
@@ -23,11 +23,13 @@ public interface IImageParsingService
 /// <summary>
 /// Result of image parsing containing shopping-relevant context
 /// </summary>
+/// <param name="SearchKeywords">Distinct, catalog-oriented terms for Azure Search / standalone question grounding (from caption, tags, objects, OCR).</param>
 public record ImageParsingResult(
     string ExtractedText,
     string Description,
     string[] Tags,
-    string[] Objects)
+    string[] Objects,
+    string[] SearchKeywords)
 {
     public bool IsSuccess => !string.IsNullOrWhiteSpace(ExtractedText);
     public int WordCount => ExtractedText?.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length ?? 0;

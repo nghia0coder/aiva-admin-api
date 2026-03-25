@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
@@ -52,13 +52,17 @@ public class ShoppingChatService(
       var recentMessages = conversation.GetRecentMessages();
       var chatHistory = await chatHistoryService.SerializeChatHistoryAsync(recentMessages.ToList());
 
+      // For standalone question generation, replace visual context with extracted product keywords
+      // so the AI never sees "image/picture/upload" framing
+      var messageForStandalone = ExtractCleanMessageForStandalone(userMessage);
+
       // Generate standalone question
       var standaloneMessage = promptTemplateService.ReplacePromptByKey(
           PromptTemplates.GuidelinesForShoppingStandalone,
           new ReplacePromptDto
           {
             FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
-            ChatInput = userMessage,
+            ChatInput = messageForStandalone,
             ChatHistory = chatHistory,
             AdditionalData = productSelection != null ? JsonSerializer.Serialize(productSelection) : null
           });
@@ -322,6 +326,103 @@ Remember: For cart display, prioritize table formatting with Cart IDs. For other
         logger.LogInformation("Checkout action detected. Will redirect to: {Url}", checkoutUrl);
         break;
       }
+    }
+  }
+
+  /// <summary>
+  /// Extracts product keywords from visual context and builds a clean message
+  /// that contains no image/upload references, only concrete product terms.
+  /// This prevents the standalone question generator from echoing "the image" back.
+  /// </summary>
+  private static string ExtractCleanMessageForStandalone(string userMessage)
+  {
+    const string visualStart = "=== VISUAL SHOPPING CONTEXT ===";
+    const string questionStart = "=== USER'S SHOPPING QUESTION ===";
+
+    var visualIdx = userMessage.IndexOf(visualStart, StringComparison.Ordinal);
+    if (visualIdx < 0)
+      return userMessage;
+
+    var questionIdx = userMessage.IndexOf(questionStart, StringComparison.Ordinal);
+    if (questionIdx < 0)
+      return userMessage;
+
+    // Extract the visual block and the user's original question
+    var visualBlock = userMessage.Substring(
+        visualIdx + visualStart.Length,
+        questionIdx - visualIdx - visualStart.Length).Trim();
+
+    var originalQuestion = userMessage
+        .Substring(questionIdx + questionStart.Length)
+        .Trim();
+
+    const string imageKeywordsPrefix =
+        "Image search keywords (catalog / Azure Search — merge with the user's words in standaloneQuestion and queryString):";
+
+    // Prefer explicit vision-derived catalog keywords (stable grounding for Azure Search + standaloneQuestion)
+    string? imageSearchKeywordsLine = null;
+    foreach (var line in visualBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+    {
+      var trimmed = line.Trim();
+      if (trimmed.StartsWith(imageKeywordsPrefix, StringComparison.OrdinalIgnoreCase))
+      {
+        imageSearchKeywordsLine = trimmed.Substring(imageKeywordsPrefix.Length).Trim();
+        break;
+      }
+    }
+
+    if (!string.IsNullOrWhiteSpace(imageSearchKeywordsLine))
+    {
+      return $"""
+<visual_product_grounding>
+Catalog keywords from the **product** in the image only (brand, model, color, material, device type — NOT holder, hands, outdoor/indoor, or background). Mandatory: include every distinct term below in queryString; weave into standaloneQuestion as the concrete product identity. Never refer to the image, photo, or "the one shown".
+{imageSearchKeywordsLine}
+</visual_product_grounding>
+
+<user_message>
+{originalQuestion}
+</user_message>
+""";
+    }
+
+    // Parse product details from the visual context block (legacy path when keywords are absent)
+    var productTerms = new List<string>();
+    foreach (var line in visualBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+    {
+      var trimmed = line.Trim();
+
+      // Extract values from structured fields
+      if (trimmed.StartsWith("Visual Description:", StringComparison.OrdinalIgnoreCase))
+        AddProductTerms(productTerms, trimmed.Substring("Visual Description:".Length));
+      else if (trimmed.StartsWith("Product Features:", StringComparison.OrdinalIgnoreCase))
+        AddProductTerms(productTerms, trimmed.Substring("Product Features:".Length));
+      else if (trimmed.StartsWith("Detected Items:", StringComparison.OrdinalIgnoreCase))
+        AddProductTerms(productTerms, trimmed.Substring("Detected Items:".Length));
+      else if (trimmed.StartsWith("Text/Brands Visible:", StringComparison.OrdinalIgnoreCase))
+        AddProductTerms(productTerms, trimmed.Substring("Text/Brands Visible:".Length));
+    }
+
+    if (productTerms.Count == 0)
+      return originalQuestion;
+
+    var productDescription = string.Join(", ", productTerms.Distinct(StringComparer.OrdinalIgnoreCase));
+
+    // Build a clean message: "User is looking for: <product details>. <original question>"
+    return $"User is looking for the following product: {productDescription}. {originalQuestion}";
+  }
+
+  private static void AddProductTerms(List<string> terms, string raw)
+  {
+    var value = raw.Trim();
+    if (string.IsNullOrWhiteSpace(value) || value == "-" || value == "N/A")
+      return;
+
+    // Split comma-separated values and add each non-empty term
+    foreach (var part in value.Split(',', StringSplitOptions.RemoveEmptyEntries))
+    {
+      var cleaned = part.Trim();
+      if (!string.IsNullOrWhiteSpace(cleaned))
+        terms.Add(cleaned);
     }
   }
 

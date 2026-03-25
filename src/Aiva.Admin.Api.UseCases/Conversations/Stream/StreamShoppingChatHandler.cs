@@ -1,4 +1,4 @@
-﻿using Aiva.Admin.Api.Core.ConversationAggregate;
+using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Specifications;
 using Aiva.Admin.Api.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -28,8 +28,8 @@ public class StreamShoppingChatHandler(
 
       // Process images and enhance message if images are provided
       var finalMessage = await ProcessImagesAndEnhanceMessageAsync(
-          request.Message, 
-          request.Images, 
+          request.Message,
+          request.Images,
           cancellationToken);
 
       if (!finalMessage.IsSuccess)
@@ -65,7 +65,7 @@ public class StreamShoppingChatHandler(
       var response = MapToResponse(shoppingResult.Value, request.Images?.Count > 0);
 
       logger.LogInformation(
-          "Successfully processed shopping chat for conversation {ConversationId} with {ImageCount} images", 
+          "Successfully processed shopping chat for conversation {ConversationId} with {ImageCount} images",
           request.ConversationId, request.Images?.Count ?? 0);
 
       return Result.Success(response);
@@ -118,7 +118,7 @@ public class StreamShoppingChatHandler(
           var imageContext = BuildImageContext(image.FileName, parsingResult.Value);
           imageContexts.Add(imageContext);
 
-          logger.LogInformation("Successfully parsed image {FileName}: {WordCount} words", 
+          logger.LogInformation("Successfully parsed image {FileName}: {WordCount} words",
               image.FileName, parsingResult.Value.WordCount);
         }
         else
@@ -157,10 +157,13 @@ public class StreamShoppingChatHandler(
 
     // Add visual shopping context with clear instructions
     messageBuilder.AppendLine("=== VISUAL SHOPPING CONTEXT ===");
-    messageBuilder.AppendLine("The user has uploaded images to assist with their shopping inquiry. Please analyze the visual content to provide relevant product recommendations, comparisons, or shopping assistance.");
+    messageBuilder.AppendLine("The user has uploaded images to assist with their shopping inquiry.");
+    messageBuilder.AppendLine("Extract **merchandise** only: brand, model, color/finish, materials, visible specs (e.g. cameras), and OCR text on the product.");
+    messageBuilder.AppendLine("Ignore **non-product** context: who is holding the item, hands, outdoor/indoor setting, background, trees/sky, or how the photo was taken — unless the user explicitly asks about that.");
+    messageBuilder.AppendLine("Use this to recommend or match **products**, not to describe the scene.");
 
     // Special instruction for cart-related queries with images
-    if (originalMessage.Contains("cart", StringComparison.OrdinalIgnoreCase) || 
+    if (originalMessage.Contains("cart", StringComparison.OrdinalIgnoreCase) ||
         originalMessage.Contains("giỏ", StringComparison.OrdinalIgnoreCase))
     {
       messageBuilder.AppendLine();
@@ -208,13 +211,19 @@ public class StreamShoppingChatHandler(
       context.Add($"Detected Items: {string.Join(", ", result.Objects)}");
     }
 
+    if (result.SearchKeywords?.Length > 0)
+    {
+      context.Add(
+          $"Image search keywords (catalog / Azure Search — merge with the user's words in standaloneQuestion and queryString): {string.Join("; ", result.SearchKeywords)}");
+    }
+
     if (!string.IsNullOrWhiteSpace(result.ExtractedText))
     {
       context.Add($"Text/Brands Visible: {result.ExtractedText}");
     }
 
     // Add shopping intent guidance
-    context.Add("Shopping Context: This image shows products or items the user wants to inquire about, purchase, or get recommendations for.");
+    context.Add("Shopping Context: The salient subject is the **product** in frame (what could be sold in a catalog), not the holder or environment.");
 
     return string.Join("\n", context);
   }
@@ -227,7 +236,7 @@ public class StreamShoppingChatHandler(
     // Check if parsing service supports the content type
     if (!imageParsingService.IsSupported(image.ContentType))
     {
-      logger.LogWarning("Unsupported content type for image {FileName}: {ContentType}", 
+      logger.LogWarning("Unsupported content type for image {FileName}: {ContentType}",
           image.FileName, image.ContentType);
       return false;
     }
@@ -236,7 +245,7 @@ public class StreamShoppingChatHandler(
     const long maxSizeBytes = 10 * 1024 * 1024;
     if (image.FileSizeBytes > maxSizeBytes)
     {
-      logger.LogWarning("Image {FileName} too large for shopping analysis: {Size} bytes (max: {MaxSize})", 
+      logger.LogWarning("Image {FileName} too large for shopping analysis: {Size} bytes (max: {MaxSize})",
           image.FileName, image.FileSizeBytes, maxSizeBytes);
       return false;
     }
@@ -252,7 +261,7 @@ public class StreamShoppingChatHandler(
     const long minSizeBytes = 10 * 1024;
     if (image.FileSizeBytes < minSizeBytes)
     {
-      logger.LogWarning("Image {FileName} too small for reliable shopping analysis: {Size} bytes", 
+      logger.LogWarning("Image {FileName} too small for reliable shopping analysis: {Size} bytes",
           image.FileName, image.FileSizeBytes);
       return false;
     }
