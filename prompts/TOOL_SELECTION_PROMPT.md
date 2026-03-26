@@ -229,7 +229,7 @@ The cart table MUST be fully interactive so users can:
 
 **What it does:**
 - Prepares checkout session.
-- Returns checkout URL (https://smartstore-demo-bnf3hzhpdvbkabad.southeastasia-01.azurewebsites.net) for frontend to redirect.
+- Returns checkout URL (https://smartstore-demo-bnf3hzhpdvbkabad.southeastasia-01.azurewebsites.net/checkout) for frontend to redirect.
 - Frontend will automatically redirect user to checkout page where they can enter shipping, billing, and payment details.
 
 **When NOT to call:**

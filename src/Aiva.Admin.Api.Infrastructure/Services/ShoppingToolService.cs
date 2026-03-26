@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Aiva.Admin.Api.Core.Commons.Models;
@@ -248,10 +248,15 @@ public class ShoppingToolService(
     {
       logger.LogInformation("Initiating checkout for user {UserId}", userId);
 
+      var storeRoot = (_shoppingApiConfig.BaseUrl ?? string.Empty).TrimEnd('/');
+      var checkoutPageUrl = string.IsNullOrEmpty(storeRoot)
+          ? "http://localhost:5000/checkout"
+          : $"{storeRoot}/checkout";
+
       // Return a special marker that ShoppingChatService will detect
-      // to trigger redirect action
+      // to trigger redirect action (URL line must be absolute checkout page path)
       var checkoutMessage = "🛒 [CHECKOUT_ACTION] Redirecting to checkout page...\n" +
-                          "URL: https://smartstore-demo-bnf3hzhpdvbkabad.southeastasia-01.azurewebsites.net\n" +
+                          $"URL: {checkoutPageUrl}\n" +
                           "Your cart items are ready for purchase!";
 
       return await Task.FromResult(Result.Success(checkoutMessage));
