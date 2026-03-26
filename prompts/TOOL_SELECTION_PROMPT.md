@@ -17,6 +17,8 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 **CART OPERATIONS** — High Priority:
 - If [additional_data] exists with selected products → call `add_to_cart` for each item (see Flow A below)
 - If user wants to remove/update cart items → call `remove_from_cart` or `update_cart`
+- **Cart ID already in context (no `get_cart` prefetch):** If `[additional_data]` is a JSON array where items include `cartId` (shopping-cart line id), and the user's intent is remove or change quantity → **resolve which row they mean** by matching `productId`, name hints in the standalone question, and `extraData.searchAttributes` (e.g. Color, Memory capacity) to **one** entry. If exactly one row matches → call `remove_from_cart` or `update_cart` with that `cartId` as `cart_item_id` **immediately**. Do **not** call `get_cart` first only to discover an id you already have in `[additional_data]`.
+- Only call `get_cart` first when **no** `cartId` is available for the intended line, or when multiple rows match and you cannot pick a unique `cartItemId` without fresh cart contents.
 
 **SEARCH/BROWSE** — Normal Priority:
 - If user is searching or browsing products → call `search_infors` or `get_product_info`
@@ -100,8 +102,9 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 - `product_name` (optional) – Product name for confirmation.
 
 **Prerequisites:**
-- User must first call `get_cart` to see their cart items and cart item IDs.
-- Cart item ID must exist in user's current cart.
+- `cart_item_id` must identify a line in the user's current cart.
+- **Do not** treat `get_cart` as mandatory: if `[additional_data]` already supplies `cartId` for the line the user is referring to (after matching product + attributes to a single row), call `remove_from_cart` directly.
+- Call `get_cart` first only when you **cannot** determine `cart_item_id` from the standalone question plus `[additional_data]`, or when matching is ambiguous (zero or multiple rows).
 
 **API Details:**
 - Uses OData endpoint: `/odata/v1/shoppingcartitems({cartItemId})/deleteitem`
@@ -110,12 +113,13 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 
 **When NOT to call:**
 - User wants to update quantity (use `update_cart` instead).
-- Cart item ID is unknown (prompt user to check cart first with `get_cart`).
+- Cart item ID is unknown and `[additional_data]` does not contain a resolvable `cartId` (then use `get_cart` or ask the user).
 
 **Flow:**
-1. User requests to remove cart item.
-2. If cart item ID is known → call `remove_from_cart` directly.
-3. If cart item ID is unknown → call `get_cart` first to show cart items with their IDs, then ask user to specify which item to remove.
+1. User requests to remove a cart item.
+2. **If `[additional_data]` has `cartId`:** Match the user's description (product name, model, attributes in the question) to **one** array element; use its `cartId` as `cart_item_id` → call `remove_from_cart` (no `get_cart`).
+3. Else if cart item ID is known from the message → call `remove_from_cart` directly.
+4. Else → call `get_cart` to obtain line ids, or respond asking which line to remove.
 
 ---
 
@@ -134,19 +138,20 @@ Use these rules to decide **when** and **which** tool to call. Apply in priority
 - `product_name` (optional) – Product name for confirmation.
 
 **Prerequisites:**
-- User must first call `get_cart` to see their cart items and cart item IDs.
-- Cart item ID must exist in user's current cart.
+- `cart_item_id` and new `quantity` must be known.
+- Same rule as remove: if `[additional_data]` includes `cartId` and you can map the user's request to **one** row, call `update_cart` with that id — **skip** `get_cart`.
 
 **When NOT to call:**
 - User wants to add new products (use `add_to_cart` instead).
 - User wants to remove items completely (use `remove_from_cart` instead).
-- Cart item ID is unknown (prompt user to check cart first with `get_cart`).
+- Cart item ID is unknown and not resolvable from `[additional_data]`.
 - User is asking about cart contents without updating (use `get_cart` instead).
 
 **Flow:**
 1. User requests to update cart quantity.
-2. If cart item ID is known → call `update_cart` directly.
-3. If cart item ID is unknown → call `get_cart` first to show cart items with their IDs, then ask user to specify which item to update.
+2. **If `[additional_data]` has `cartId`:** Match user intent to one row → `update_cart` with that `cartId` and the quantity from the message or from the row (if specified).
+3. Else if cart item ID is known → call `update_cart` directly.
+4. Else → call `get_cart` or ask the user to clarify.
 
 ---
 
@@ -263,7 +268,7 @@ The cart table MUST be fully interactive so users can:
 
 | Placeholder     | Description |
 |-----------------|-------------|
-| `[additional_data]` | User-selected products: `[{ productId, quantity, extraData: { searchAttributes: [{ name, value }] } }]`. Use for add_to_cart/remove_from_cart. |
+| `[additional_data]` | Cart/table selection JSON: `[{ cartId, productId, quantity, extraData?: { searchAttributes: [{ name, value }] } }]`. Use for **add_to_cart** (product + attributes), **remove_from_cart**, and **update_cart** when `cartId` identifies the cart line — avoid redundant `get_cart` when ids are already present. |
 | `[user_query]`  | Current user message. |
 | `[retrieved_context]` | Product/catalog info from search. |
 

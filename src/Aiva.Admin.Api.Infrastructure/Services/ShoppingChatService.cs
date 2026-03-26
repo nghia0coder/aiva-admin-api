@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Aiva.Admin.Api.Core.ConversationAggregate;
 using Aiva.Admin.Api.Core.ConversationAggregate.Constants;
 using Aiva.Admin.Api.Core.ConversationAggregate.DTOs;
@@ -125,18 +125,46 @@ public class ShoppingChatService(
             userName,
             cancellationToken);
 
-        var toolResultsInstruction = BuildToolResultsInstruction();
+        // Retrieval tools (search_infors, get_product_info) return catalog data that the shopping
+        // assistant must render as an interactive product table using <shopping_cart_rules>.
+        // Action tools (add_to_cart, remove_from_cart, update_cart, clear_cart, checkout, get_cart)
+        // have already mutated state and only need a brief confirmation.
+        var isRetrievalOnly = toolSelectionResult.Value.All(tc => IsRetrievalTool(tc.Function.Name));
 
-        var systemPrompt = promptTemplateService.ReplacePromptByKey(
-          systemPromptTemplate,
-          new ReplacePromptDto
-          {
-            FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
-            ProductData = string.Join("\n", toolResults.Values),
-            ToolResultsInstruction = toolResultsInstruction
-          });
+        string systemPrompt;
+        string finalUserMessage;
 
-        var finalResponse = await chatService.GetCompletionAsync(systemPrompt, dataStandalone.StandaloneQuestion);
+        if (isRetrievalOnly)
+        {
+          // Let the shopping assistant display the product table normally
+          systemPrompt = promptTemplateService.ReplacePromptByKey(
+            systemPromptTemplate,
+            new ReplacePromptDto
+            {
+              FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
+              ProductData = string.Join("\n", toolResults.Values),
+              ToolResultsInstruction = string.Empty
+            });
+          finalUserMessage = dataStandalone.StandaloneQuestion;
+        }
+        else
+        {
+          // Action tools: tell the AI the action is done and to confirm it
+          systemPrompt = promptTemplateService.ReplacePromptByKey(
+            systemPromptTemplate,
+            new ReplacePromptDto
+            {
+              FullName = !string.IsNullOrWhiteSpace(userName) ? userName : "User",
+              ProductData = string.Join("\n", toolResults.Values),
+              ToolResultsInstruction = BuildToolResultsInstruction()
+            });
+          finalUserMessage = BuildToolExecutionCompletedMessage(
+              dataStandalone.StandaloneQuestion,
+              toolSelectionResult.Value,
+              toolResults);
+        }
+
+        var finalResponse = await chatService.GetCompletionAsync(systemPrompt, finalUserMessage);
 
         var resultWithTool = new ShoppingChatResult
         {
@@ -183,6 +211,32 @@ public class ShoppingChatService(
       logger.LogError(ex, "Error processing shopping chat for conversation {ConversationId}", conversation.Id);
       return Result.Error($"Shopping chat processing failed: {ex.Message}");
     }
+  }
+
+  private static bool IsRetrievalTool(string toolName) =>
+      toolName is "search_infors" or "get_product_info";
+
+  private static string BuildToolExecutionCompletedMessage(
+      string originalQuestion,
+      List<ToolCall> toolCalls,
+      Dictionary<string, object> toolResults)
+  {
+    var sb = new System.Text.StringBuilder();
+    sb.AppendLine("[TOOL EXECUTION ALREADY COMPLETED — DO NOT ASK THE USER FOR MORE INFORMATION]");
+    sb.AppendLine();
+    sb.AppendLine($"User's original request: {originalQuestion}");
+    sb.AppendLine();
+    sb.AppendLine("Tools executed and their results:");
+    foreach (var toolCall in toolCalls)
+    {
+      if (toolResults.TryGetValue(toolCall.Id, out var result))
+      {
+        sb.AppendLine($"• {toolCall.Function.Name}: {result}");
+      }
+    }
+    sb.AppendLine();
+    sb.AppendLine("The action(s) above have already been carried out. Confirm the completed action(s) to the user concisely. Do NOT ask for information that was already provided or request the user to repeat an action that succeeded.");
+    return sb.ToString();
   }
 
   private static string BuildToolResultsInstruction()
