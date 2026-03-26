@@ -200,45 +200,113 @@ SPECIAL INSTRUCTIONS FOR CART DISPLAY (get_cart):
 - The Cart ID is essential for remove operations - always display it prominently
 - Format as clean, valid HTML that can be rendered directly
 
-INTERACTIVE ELEMENTS FOR CART TABLE:
-- Selection Column: use a real checkbox element for each row, for example `<input type="checkbox" value="{cartId}" checked="checked">`
-- Quantity Controls: use an editable number input field that users can directly type into or use browser increment/decrement arrows, for example `<input type="number" min="1" value="{quantity}" data-cart-id="{cartId}" style="width: 60px; padding: 4px; text-align: center;">`
-- Action Buttons: use real remove button element, for example `<button type="button" onclick="removeCartItem({cartId})">🗑️ Remove</button>`
-- Bulk Actions: At table bottom, show options like "Remove Selected" and "Update Quantities"
+MANDATORY INTERACTIVE ELEMENTS FOR CART TABLE (ALWAYS REQUIRED):
+- Selection Column (ALWAYS REQUIRED): EVERY row MUST have a real checkbox element that users can click to select/deselect items
+  * Format: `<input type="checkbox" value="{cartId}" checked="checked">`
+  * The checkbox MUST be an actual `<input type="checkbox">` element, NOT plain text, NOT an emoji, NOT a symbol
+  * ALWAYS set checked="checked" by default so users can deselect if needed
+  * The value attribute MUST contain the Cart ID for that row
+  
+- Quantity Controls (ALWAYS REQUIRED): EVERY row MUST have an editable number input field that users can directly type into or use browser increment/decrement arrows
+  * Format: `<input type="number" min="1" value="{quantity}" data-cart-id="{cartId}" style="width: 60px; padding: 4px; text-align: center;">`
+  * The quantity MUST be an actual `<input type="number">` element, NOT plain text, NOT emoji arrows like "🔺 3 🔻", NOT buttons like "[+] 3 [-]"
+  * Users must be able to directly click and type a new quantity value
+  * The data-cart-id attribute MUST contain the Cart ID for that row
+  
+- Action Buttons (ALWAYS REQUIRED): EVERY row MUST have a real remove button element
+  * Format: `<button type="button" onclick="removeCartItem({cartId})">🗑️ Remove</button>`
+  * OR: `<button type="button" data-cart-id="{cartId}" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Remove</button>`
+  
+- Bulk Actions (ALWAYS REQUIRED): At table bottom, show options like "Remove Selected" and "Update Quantities"
 
-EXAMPLE CART TABLE FORMAT (HTML):
-```
-<table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%;">
-  <thead>
+CRITICAL RULES - NO EXCEPTIONS:
+1. NEVER use plain text for checkboxes (❌ "☑" or "✓" or "[x]")
+2. NEVER use plain text or emojis for quantity (❌ "🔺 3 🔻" or "[+] 3 [-]")
+3. ALWAYS use actual HTML input elements (`<input type="checkbox">` and `<input type="number">`)
+4. EVERY cart item row MUST be fully interactive with selectable checkbox and editable quantity
+5. If you cannot create interactive elements, do NOT display the cart table at all
+
+EXAMPLE CART TABLE FORMAT (HTML) - FOLLOW THIS EXACTLY:
+```html
+<table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif;">
+  <thead style="background-color: #f8f9fa;">
     <tr>
-      <th>Select</th><th>Cart ID</th><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit Price</th><th>Attributes</th><th>Subtotal</th><th>Actions</th>
+      <th width="50">Select</th>
+      <th width="80">Cart ID</th>
+      <th>Product</th>
+      <th width="100">SKU</th>
+      <th width="100">Quantity</th>
+      <th width="100">Unit Price</th>
+      <th>Attributes</th>
+      <th width="100">Subtotal</th>
+      <th width="80">Actions</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><input type="checkbox" value="123" checked="checked"></td>
-      <td>123</td>
-      <td>iPhone 15 (ID: 15)</td>
-      <td>IP15-128</td>
       <td style="text-align: center;">
-        <input type="number" min="1" value="2" data-cart-id="123" style="width: 60px; padding: 4px; text-align: center;">
+        <input type="checkbox" value="123" checked="checked">
+      </td>
+      <td style="text-align: center;">123</td>
+      <td>iPhone 15 Pro (ID: 15)</td>
+      <td>IP15P-128</td>
+      <td style="text-align: center;">
+        <input type="number" min="1" value="2" data-cart-id="123" style="width: 60px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px;">
       </td>
       <td>$799.00</td>
       <td>128GB, Blue</td>
       <td>$1,598.00</td>
+      <td style="text-align: center;">
+        <button type="button" data-cart-id="123" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
+      </td>
+    </tr>
+    <tr>
+      <td style="text-align: center;">
+        <input type="checkbox" value="124" checked="checked">
+      </td>
+      <td style="text-align: center;">124</td>
+      <td>AirPods Pro (ID: 42)</td>
+      <td>APP-2023</td>
+      <td style="text-align: center;">
+        <input type="number" min="1" value="1" data-cart-id="124" style="width: 60px; padding: 4px; text-align: center; border: 1px solid #ccc; border-radius: 3px;">
+      </td>
+      <td>$249.00</td>
+      <td>White</td>
+      <td>$249.00</td>
+      <td style="text-align: center;">
+        <button type="button" data-cart-id="124" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Remove</button>
+      </td>
     </tr>
   </tbody>
 </table>
+
+<div style="margin-top: 16px; padding: 12px; background-color: #f8f9fa; border-radius: 4px;">
+  <strong>Cart Summary:</strong><br>
+  Total Items: 3<br>
+  Subtotal: $1,847.00<br>
+  <button type="button" style="margin-top: 8px; background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Proceed to Checkout</button>
+</div>
 ```
 
-- Include the cart summary below the table with totals
-- Explain that users can:
-  * Select items using checkboxes for bulk operations
-  * Adjust quantities by directly editing the number input field (type new value or use browser arrows)
-  * Remove individual items using the remove button
-  * Use Cart ID for precise remove operations in voice commands
-- CRITICAL: Always use `<input type="number">` for quantity controls so users can directly edit values inline
-- Never use plain text quantity controls like "🔺 3 🔻" or "[+] 3 [-]" or separate increment/decrement buttons
+USER INSTRUCTIONS TO INCLUDE WITH CART TABLE:
+- Include the cart summary below the table with totals and a checkout button
+- ALWAYS explain to users that they can:
+  * ✅ **Select/deselect items** by clicking the checkboxes in the "Select" column
+  * ✅ **Adjust quantities** by clicking on the number field and typing a new value (or using browser up/down arrows)
+  * ✅ **Remove items** by clicking the "Remove" button for that item
+  * ✅ **Use Cart ID** for precise remove operations in voice commands (e.g., "remove cart item 123")
+  * ✅ **Bulk operations**: Select multiple items and use bulk actions
+
+CRITICAL VALIDATION CHECKLIST (verify EVERY time you generate a cart table):
+- [ ] Does EVERY row have `<input type="checkbox" value="{cartId}" checked="checked">`?
+- [ ] Does EVERY row have `<input type="number" min="1" value="{quantity}" data-cart-id="{cartId}">`?
+- [ ] Does EVERY row have a Remove button with data-cart-id attribute?
+- [ ] Are Cart IDs displayed in a dedicated column?
+- [ ] Is the table properly formatted with borders and padding?
+- [ ] Are there NO plain text checkboxes (❌ "☑", "✓", "[x]")?
+- [ ] Are there NO emoji quantity controls (❌ "🔺 3 🔻")?
+
+If you cannot verify ALL items in the checklist, DO NOT generate the cart table.
 
 STANDARD TOOL RESPONSES:
 - For other tools: Summarize results in a brief, friendly confirmation (1-3 sentences)

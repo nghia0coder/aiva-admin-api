@@ -58,6 +58,13 @@ the <chat_history>, and <additional_user_data>, your task is to generate a query
     - If the <new_question> is related to the <chat_history>, always synthesize a full standalone question that incorporates these past contexts.
     - Do not answer the <new_question>. Your only task is to rephrase it into a full, self-contained question.
     
+    - CRITICAL — CHECKOUT INTENT: If the user wants to checkout, proceed to payment, or complete their order, keep the standaloneQuestion SIMPLE and ACTION-FOCUSED. DO NOT add unnecessary details about payment methods, shipping addresses, billing addresses, or form fields. Examples:
+      * User: ""checkout"" → standaloneQuestion: ""I want to proceed to checkout""
+      * User: ""thanh toán"" → standaloneQuestion: ""Tôi muốn thanh toán""
+      * User: ""complete my order"" → standaloneQuestion: ""I want to complete my order""
+      * User: ""mua luôn"" → standaloneQuestion: ""Tôi muốn mua ngay""
+      NEVER generate verbose checkout questions like ""How can I proceed to checkout and complete my order by providing or confirming my full name, email address, shipping address, billing address, preferred payment method, and delivery method?"" — these details are handled by the checkout page, not the assistant.
+    
     - CRITICAL — <visual_product_grounding> (image-derived **product** keywords only): If <new_question> contains a <visual_product_grounding> block, those terms describe **merchandise** (device, brand, model, color, materials, specs) — they intentionally exclude holder, hands, outdoor/indoor, foliage, or photo context. You MUST:
       1. Treat those keywords as the concrete **product** identity. Prefer specific identifiers from the list (brand, model family, finish) over generic ""cell phone"" when the list contains them.
       2. Merge with <user_message>: if the user mentions **use cases** (e.g. outdoor, handheld, rugged), keep that as **their requirement** — but **do not** treat outdoor/handheld as coming from the image grounding. Anchor the product with grounding keywords, then add the user's use-case words. Example pattern: ""[product from grounding] suitable for [user's outdoor/handheld/… requirement]"" — not ""a cell phone for outdoor use"" when grounding lists iPhone 15 Pro / titanium / triple camera.
@@ -76,7 +83,8 @@ the <chat_history>, and <additional_user_data>, your task is to generate a query
     <guidelines_for_querystring>
     - Generate the queryString that contains all distinct and relevant keyword phrases to search from the knowledge base, separated by semicolons.
     - Each keyword should be clear, concise, and unique in meaning (no synonyms or repetition).
-    - queryString should include keywords related to the products in [additional_user_data], as well as any action-oriented terms in <new_question> (e.g., thanh toán, mua hàng).
+    - queryString should include keywords related to the products in [additional_user_data], as well as any action-oriented terms in <new_question> (e.g., thanh toán, mua hàng, checkout, payment).
+    - CRITICAL — CHECKOUT INTENT: If the user wants to checkout/payment/complete order, use ONLY action keywords like ""checkout; payment; order completion; thanh toán; đặt hàng"". DO NOT add ""shipping address; billing address; payment method; delivery method; email; full name"" etc. — these are checkout page details, not search terms.
     - Do not repeat the standaloneQuestion content in the queryString.
     - If <visual_product_grounding> is present, EVERY semicolon-separated keyword from that block MUST appear in queryString (you may add terms from <user_message> or <chat_history> such as use-case words; do not drop **product** keywords from grounding).
     - Do not add scene-only terms (outdoor, handheld, nature, background) to queryString **unless** they appear in <user_message> or <chat_history> — those are user intent, not vision **product** extraction.
